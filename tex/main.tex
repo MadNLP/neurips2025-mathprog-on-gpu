@@ -238,15 +238,15 @@ Then, we discuss different aspects of various KKT system formulations that can b
 We also discuss strategies for implementing sparse automatic differentiation on GPUs, which is crucial for nonlinear programming.
 Finally, we present numerical results highlighting scalability---often achieving more than 10x speed-ups over the best existing CPU alternatives---and the current limitations of the solvers available within MadSuite, a GPU-accelerated mathematical programming software suite.
 
-\section{Direct Linear Solvers on GPUs}\label{eqn:linear}
+\section{Direct Linear Solvers for Optimization Sovlers}\label{eqn:linear}
 %% SS: Alexis, could you write  this section?
+The most commonly used direct linear solvers in mathematical programming solvers are based on sparse matrix factorization methods are summarized below.
 This section summarizes the current state-of-the-art in the GPU implementations of direct solvers, particularly focusing on the current capabilities of cuDSS, NVIDIA's direct solver library.
 % Although GPU solvers has made significant progress in the recent years, their numerical stability, especially for handling indefinite linear systems is still rather limited.
 
-\subsection{Sparse matrix factorization for mathematical programming solvers}
-The most commonly used direct linear solvers in mathematical programming solvers are based on sparse matrix factorization methods are summarized below.
 
-\paragraph{Cholesky factorization}
+
+\subsection{Cholesky factorization}
 Cholesky factorization is a matrix factorization method that decomposes a positive definite matrix $A$ into the product of a lower triangular matrix $L$ and its transpose, i.e., $A = LL^\top$. For sparse matrices, a proper ordering of the matrix is required to minimize fill-in and to ensure the parallelizability at the elimination tree level. By also incorporating the permutation, the factorization can be written as $A = P L L^\top P^\top$, where $P$ is a permutation matrix.
 Within direct solvers, Cholesky factorization is typically utilized to solve linear systems of the form $Ax = b$, where the solution is obtained by first solving the lower triangular system $Ly = Pb$ and then the upper triangular system $L^\top x = y$.
 
@@ -260,7 +260,7 @@ Cholesky factorization exists only if the original matrix $A$ is positive defini
 % Thus, the failure of the Cholesky factorization can be used by the optimization sovler as a signal that the primal regularization needs to be increased to ensure the descent direction of the Newton's step.
 
 
-\paragraph{LDL$^\top$ factorization}
+\subsection{LDL$^\top$ factorization}
 If Cholesky factorization is not an option, one may resort to LDL$^\top$ factorization, often referred to as modified or signed Cholesky factorization.
 This method decomposes a matrix $A$ into the product of a lower triangular matrix $L$, a diagonal matrix $D$, and the transpose of $L$, i.e., $A = L D L^\top$ (or $A = P L D L^\top P^\top$ with a permutation matrix $P$).
 The algorithm is almost the same is the Cholesky factorization, except that the diagonal matrix $D$ can contain both positive and negative entries, which allows the factorization to be applied to indefinite matrices.
@@ -274,6 +274,9 @@ Below we summarize the existing strategies and their potential use within GPU so
 \paragraph{Partial Pivoting}
 \paragraph{Pivot Perturbing}
 \paragraph{Iterative Refinement}
+
+
+\subsection{LBL$^\top$ factorization}
 
 % This factorization method is guaranteed to be numerically stable when it is applied to symmetric quasi-definite matrices, and thus, is particularly suitable for factorizing the KKT system matrices encountered within the interior-point method for convex optimization problems.
 
