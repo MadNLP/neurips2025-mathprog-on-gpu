@@ -176,6 +176,8 @@ In recent years, GPU-accelerated second-order (e.g., interior-point) optimizatio
 
 
 \section{Introduction}
+
+
 %% SS: Sungho will write this section
 \subsection{Related Work}
 
@@ -189,10 +191,18 @@ Although GPU solvers has made significant progress in the recent years, their nu
 \subsection{LDL$^\top$ factorization and their numerical stability}
 % some basic description of LDLT factorization algorihthm, highlighting their usage within convex solvers.
 
+\subsection{Strategies to Mitigate Numerical Failures}
+
 LDL$^\top$ factorization is guaranteed to be numerically stable only if the system is positive quasi-definite.
 Otherwise, LDL$^\top$ factorization procedure is not guaranteed to be numerically stable and they can encounter zero pivot.
+Thus, various mitigation strategies are employed in the state-of-the-art direct linear solvers.
+Below we summarize the existing strategies and their potential use within GPU solvers.
 
 % discuss the strategies to mitigate the numerical failure; partial pivoting, LBL^T, pivot perturbing, iterative refinement
+\paragraph{Partial Pivoting}
+\paragraph{Pivot Perturbing}
+\paragraph{LBL$^T$ factorization}
+\paragraph{Iterative Refinement}
 
 \section{Interior-Point (Barrier) Methods and KKT Systems}
 %% SS: Francois, could you lead writing this section? I can also take a pass.
