@@ -241,28 +241,54 @@ Finally, we present numerical results highlighting scalability---often achieving
 \section{Direct Linear Solvers on GPUs}\label{eqn:linear}
 %% SS: Alexis, could you write  this section?
 This section summarizes the current state-of-the-art in the GPU implementations of direct solvers, particularly focusing on the current capabilities of cuDSS, NVIDIA's direct solver library.
-Although GPU solvers has made significant progress in the recent years, their numerical stability, especially for handling indefinite linear systems is still rather limited.
+% Although GPU solvers has made significant progress in the recent years, their numerical stability, especially for handling indefinite linear systems is still rather limited.
 
-\subsection{LDL$^\top$ factorization}
-LDL$^\top$ factorization, often called modified or signed Cholesky factorization, is a direct linear solver that is particularly suitable for solving large sparse linear systems arising from the KKT systems of the interior-point method.
-This factorization method is guaranteed to be numerically stable when it is applied to symmetric quasi-definite matrices, and thus, is particularly suitable for factorizing the KKT system matrices encountered within the interior-point method for convex optimization problems.
+\subsection{Sparse matrix factorization for mathematical programming solvers}
+The most commonly used direct linear solvers in mathematical programming solvers are based on sparse matrix factorization methods are summarized below.
 
-In practice, the KKT systems 
+\paragraph{Cholesky factorization}
+Cholesky factorization is a matrix factorization method that decomposes a positive definite matrix $A$ into the product of a lower triangular matrix $L$ and its transpose, i.e., $A = LL^\top$. For sparse matrices, a proper ordering of the matrix is required to minimize fill-in and to ensure the parallelizability at the elimination tree level. By also incorporating the permutation, the factorization can be written as $A = P L L^\top P^\top$, where $P$ is a permutation matrix.
+Within direct solvers, Cholesky factorization is typically utilized to solve linear systems of the form $Ax = b$, where the solution is obtained by first solving the lower triangular system $Ly = Pb$ and then the upper triangular system $L^\top x = y$.
+
+Although algorithms to compute $P$ is serial in nature (e.g., minimum degree ordering or nested dissection) and unsuitable for the implementaion on GPUs (e.g., cuDSS performs this operation on CPUs), the ordering can be computed only once and can be reused for multiple factorization calls, thus the overhead can be amortized over multiple calls.
+
+A nice property of Cholesky factorization is that it can be computed in a numerically stable manner, provided that the matrix $A$ is positive definite.
+Since performing numerical pivoting on GPUs is known to be challenging and inefficient, it is always desired to transform a matrix in a Cholesky factorizable form to apply direct solution methods on GPUs.
+Cholesky factorization exists only if the original matrix $A$ is positive definite.
+
+% Conversely, if the matrix is not positive definite, the Cholesky factorization will fail, and the algorithm will encounter a zero pivot.
+% Thus, the failure of the Cholesky factorization can be used by the optimization sovler as a signal that the primal regularization needs to be increased to ensure the descent direction of the Newton's step.
+
+
+\paragraph{LDL$^\top$ factorization}
+If Cholesky factorization is not an option, one may resort to LDL$^\top$ factorization, often referred to as modified or signed Cholesky factorization.
+This method decomposes a matrix $A$ into the product of a lower triangular matrix $L$, a diagonal matrix $D$, and the transpose of $L$, i.e., $A = L D L^\top$ (or $A = P L D L^\top P^\top$ with a permutation matrix $P$).
+The algorithm is almost the same is the Cholesky factorization, except that the diagonal matrix $D$ can contain both positive and negative entries, which allows the factorization to be applied to indefinite matrices.
+LDL$^\top$ factorization exists for more broad class of matrices, including many indefinite matrices.
+However, they are guaranteed to be stable with any given ordering (thus not requiring numerical pivoting) only when the matrix is symmetric quasi-definite.
+Many of the saddle point systems encountered in mathematical programming solvers are positive quasi-definite or close to be positive quasi-definite (can be come quasi-definite with infinitsesimal regularization), and thus, LDL$^\top$ factorization is often used to solve the KKT systems in the interior-point method.
+
+However, for general indefinite matrices, LDL$^\top$ factorization procedure is not guaranteed to be numerically stable and they can encounter zero pivot.
+Thus, various mitigation strategies are employed in the state-of-the-art direct linear solvers.
+Below we summarize the existing strategies and their potential use within GPU solvers.
+\paragraph{Partial Pivoting}
+\paragraph{Pivot Perturbing}
+\paragraph{Iterative Refinement}
+
+% This factorization method is guaranteed to be numerically stable when it is applied to symmetric quasi-definite matrices, and thus, is particularly suitable for factorizing the KKT system matrices encountered within the interior-point method for convex optimization problems.
+
+
+
+% In practice, the KKT systems 
 
 % some basic description of LDLT factorization algorihthm, highlighting their usage within convex solvers.
 
-\subsection{Strategies to Mitigate Numerical Failures}
+% \subsection{Strategies to Mitigate Numerical Failures}
 
-LDL$^\top$ factorization is guaranteed to be numerically stable only if the system is positive quasi-definite.
-Otherwise, LDL$^\top$ factorization procedure is not guaranteed to be numerically stable and they can encounter zero pivot.
-Thus, various mitigation strategies are employed in the state-of-the-art direct linear solvers.
-Below we summarize the existing strategies and their potential use within GPU solvers.
+
 
 % discuss the strategies to mitigate the numerical failure; partial pivoting, LBL^T, pivot perturbing, iterative refinement
-\paragraph{Partial Pivoting}
-\paragraph{Pivot Perturbing}
-\paragraph{LBL$^\top$ factorization}
-\paragraph{Iterative Refinement}
+% \subsection{Strategies to Mitigate Numerical Failures}
 
 
 
@@ -274,20 +300,12 @@ Below we summarize the existing strategies and their potential use within GPU so
 Here, $s \in \mathbb{R}^m$ is the slack variable, and $\mu > 0$ is the barrier parameter that is gradually reduced to zero as the algorithm progresses.
 The KKT conditions for the problem \cref{eqn:barrier} are given by:
 \begin{align}\label{eqn:kkt}
-  \begin{bmatrix}
-    \nabla f(x) + \nabla g(x)^\top \lambda\\
-    \Lambda s  \\
-    g(x) + s \\
-  \end{bmatrix} =
-  \begin{bmatrix}
-    0 \\
-    \mu e\\
-    0 \\
-  \end{bmatrix},
+  \nabla f(x) + \nabla g(x)^\top \lambda = 0, \quad
+  \Lambda s  = \mu e,\quad
+  g(x) + s =   0 ,
 \end{align}
 where $\lambda \in \mathbb{R}^m$ is the Lagrange multiplier, $\Lambda = \text{diag}(s)$ is the diagonal matrix of slack variables, and $e$ is the vector of ones.
 
-\paragraph{KKT System}
 \Gls*{ipm} solves \cref{eqn:kkt} iteratively, where at each iteration, the KKT system:
 \begin{align}\label{eqn:kkt_system}
   \begin{bmatrix}
@@ -396,16 +414,12 @@ This syntax allows the modeling system to store the model function information i
 \section{Numerical Results}\label{eqn:num}
 This section provides performance benchmark results for the GPU solvers against the state-of-the-art CPU solvers.
 Publicly available benchmark instances, such as MIPLIB, pglib-opf, and COPS, are used to evaluate the performance of the solvers.
-The details of the hardware used for the benchmark are as follows:
-\begin{itemize}[leftmargin=*,itemsep=0pt,parsep=0pt,partopsep=0pt]
-\item CPU: TODO
-\item GPU: TODO
-\item Memory: TODO
-\item Software: TODO
-\end{itemize}
-The numerical results can be reproduced with the source code available at \url{https://github.com/MadNLP/neurips2025-mathprog-on-gpu}.
-
 When reporting the solve time for multiple instances, we represent them by shifted geometric mean: $\left(\prod_{i=1}^n (t_i + \Delta)\right)^{1/n} - \Delta$, where $t_i$ is the solve time for the $i$-th instance and $\Delta$ is the shift factor. We denote this metric with $\Delta = 10$ as SGM10. If an instance is unsolved, its solving time is set to the corresponding time limit.
+The benchmark was performed on a workstation with two Intel(R) Xeon(R) Platinum 8160 CPU @ 2.10GHz, two Quadro GV 100 GPUs, and 384 GB of RAM.
+The following versions of the software are used within the benchmark: Julia v1.11.6, MadNLP v0.8.8, ExaModels v0.9.0, CUDSS v0.6.0, HiGHS v1.7.0, and Gurobi v10.0.0.
+The numerical results can be reproduced with the source code and Manifest file available at \url{https://github.com/MadNLP/neurips2025-mathprog-on-gpu}.
+
+
 
 \subsection{Linear Programming}
 \paragraph{MIPLIB}
