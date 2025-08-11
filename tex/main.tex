@@ -176,20 +176,39 @@ In recent years, GPU-accelerated second-order (e.g., interior-point) optimizatio
 
 
 \section{Introduction}
+%% SS: Sungho will write this section
+\subsection{Related Work}
+
+
 
 \section{Direct Linear Solvers on GPUs}
+%% SS: Alexis, could you write  this section?
+This section summarizes the current state-of-the-art in the GPU implementations of direct solvers, particularly focusing on the current capabilities of cuDSS, NVIDIA's direct solver library.
+Although GPU solvers has made significant progress in the recent years, their numerical stability, especially for handling indefinite linear systems is still rather limited.
+
+\subsection{LDL$^\top$ factorization and their numerical stability}
+% some basic description of LDLT factorization algorihthm, highlighting their usage within convex solvers.
+
+LDL$^\top$ factorization is guaranteed to be numerically stable only if the system is positive quasi-definite.
+Otherwise, LDL$^\top$ factorization procedure is not guaranteed to be numerically stable and they can encounter zero pivot.
+
+% discuss the strategies to mitigate the numerical failure; partial pivoting, LBL^T, pivot perturbing, iterative refinement
+
 \section{Interior-Point (Barrier) Methods and KKT Systems}
+%% SS: Francois, could you lead writing this section? I can also take a pass.
 
 \subsection{Linear Programming}
 \subsection{Nonlinear Programming}
-\subsection{Alternative Algorithms}
+\subsection{Alternative Strategies}
+%% Here, we only provide pointers to our arXiv posting. It would be ideal to have NCL paper on arXiv so that we can cite it here.
 Pointer to NCL paper.
+Pointer to HybridKKT.
 
 \section{Automatic Differentiation for Nonlinear Programs}
+%% SS will write this part
 
 \section{Numerical Results}
-
-The numerical results can be reproduced with the source code available at \url{https://github.com/MadNLP/gpu-nlp-neurips}.
+The numerical results can be reproduced with the source code available at \url{https://github.com/MadNLP/neurips2025-mathprog-on-gpu}.
 
 \subsection{Linear Programming}
 \paragraph{MIPLIB}
@@ -199,7 +218,7 @@ The numerical results can be reproduced with the source code available at \url{h
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Conclusions}
-
+%% SS will write this part
 
 \appendix
 
