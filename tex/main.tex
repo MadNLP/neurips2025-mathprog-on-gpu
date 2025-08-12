@@ -533,20 +533,35 @@ The numerical results can be reproduced with the source code and Manifest file a
   \centering\small
   \caption{Solve time in seconds and SGM10 on instances of MIPLIB without presolve}
   \begin{tabular}{|c|c|cc|cc|cc|cc|}
-    \hline
-    \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (269)}& \multicolumn{2}{c|}{\textbf{Medium} (94)}& \multicolumn{2}{c|}{\textbf{Large} (20)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (383)}}\\
-                          && \multicolumn{2}{c|}{(1 hr max)}& \multicolumn{2}{c|}{(1 hr max)}& \multicolumn{2}{c|}{(5 hr max)}&&\\
-                          &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
-    \hline
-    \multirow{3}{*}{$10^{-4}$} & MadIPM & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2  \\
-                          & HiGHS & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 \\
-                          & Gurobi & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 \\
-    \hline
-    \multirow{3}{*}{$10^{-8}$} & MadIPM & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
-                          & HiGHS & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
-                          & Gurobi & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
-    \hline
-  \end{tabular}
+  \hline
+  \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (0)}& \multicolumn{2}{c|}{\textbf{Medium} (0)}& \multicolumn{2}{c|}{\textbf{Large} (4)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (4)}}\\
+                        && \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}&&\\
+                        &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
+  \hline
+    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 0 & -9.0 & 0 & -9.0 & 2 & 1.2854801994313352 & 2 & 1.2854801994313352  \\
+                        & Ipopt (cpu) & 0 & -9.0 & 0 & -9.0 & 2 & 13.338996752053031 & 2 & 13.338996752053031  \\
+
+  \hline
+    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 0 & -9.0 & 0 & -9.0 & 2 & 1.8189292455720203 & 2 & 1.8189292455720203  \\
+                        & Ipopt (cpu) & 0 & -9.0 & 0 & -9.0 & 2 & 15.189445328247583 & 2 & 15.189445328247583  \\
+
+  \hline
+\end{tabular}
+  % \begin{tabular}{|c|c|cc|cc|cc|cc|}
+  %   \hline
+  %   \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (269)}& \multicolumn{2}{c|}{\textbf{Medium} (94)}& \multicolumn{2}{c|}{\textbf{Large} (20)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (383)}}\\
+  %                         && \multicolumn{2}{c|}{(1 hr max)}& \multicolumn{2}{c|}{(1 hr max)}& \multicolumn{2}{c|}{(5 hr max)}&&\\
+  %                         &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
+  %   \hline
+  %   \multirow{3}{*}{$10^{-4}$} & MadIPM & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2  \\
+  %                         & HiGHS & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 \\
+  %                         & Gurobi & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 \\
+  %   \hline
+  %   \multirow{3}{*}{$10^{-8}$} & MadIPM & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
+  %                         & HiGHS & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
+  %                         & Gurobi & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
+  %   \hline
+  % \end{tabular}
 \end{table}
 
 \subsection{Nonlinear Programming}
@@ -874,3 +889,8 @@ IMPORTANT, please:
 
 
 \end{document}
+
+%%% Local Variables:
+%%% mode: LaTeX
+%%% TeX-master: t
+%%% End:
