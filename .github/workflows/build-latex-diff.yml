@@ -1,0 +1,42 @@
+name: Build LaTeX diff document
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build_latex:
+    runs-on: ubuntu-latest
+    env:
+      PAPER: "main"
+      MAIN: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - name: Set up Git repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download LaTeX styles
+        run: |
+          curl -OL https://github.com/dpo/latex-styles/archive/refs/heads/master.zip
+          curl -OL https://gist.githubusercontent.com/amontoison/d994bbedcfbdd631573c04f8bea52397/raw/00b849b4eea0af2e5cbe5e3c8f95aee63a6ddea2/siamart220329.cls
+          unzip master.zip -d latex-styles
+          mkdir siam-styles
+          mv siamart220329.cls siam-styles
+      - name: Compile LaTeX diff
+        uses: xu-cheng/latex-action@v4
+        with:
+          root_file: |
+            ${{ env.PAPER }}-diff${{ env.MAIN }}.tex
+          working_directory: "paper"
+          extra_system_packages: "git patch"
+          latexmk_shell_escape: true
+          pre_compile: git config --global --add safe.directory /github/workspace && latexdiff-vc --git --flatten --disable-auto-mbox --append-safecmd="MINARES" --exclude-safecmd="Cref,Cref\*,hspace" -r ${{ env.MAIN }} ${{ env.PAPER }}.tex
+        env:
+          TEXINPUTS: ".:$PWD/siam-styles:$PWD/latex-styles/styles//:"
+          BSTINPUTS: ".:$PWD/latex-styles/styles/common"
+          BIBINPUTS: ".:$PWD/latex-styles/share"
+      - name: Upload PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: DiffPDF
+          path: |
+            paper/${{ env.PAPER }}-diff${{ env.MAIN }}.pdf

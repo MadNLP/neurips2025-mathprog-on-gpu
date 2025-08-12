@@ -1,0 +1,33 @@
+name: Build LaTeX document
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build_latex:
+    runs-on: ubuntu-latest
+    env:
+      PAPER: "main"
+    steps:
+      - name: Set up Git repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Compile LaTeX document
+        uses: xu-cheng/latex-action@v4
+        with:
+          root_file: |
+            ${{ env.PAPER }}.tex
+          working_directory: "paper"
+          extra_system_packages: "git patch"
+          latexmk_shell_escape: true
+      - name: Upload PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDF
+          path: |
+            paper/${{ env.PAPER }}.pdf
