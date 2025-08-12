@@ -177,66 +177,53 @@
 
 
 \begin{abstract}
-In recent years, GPU-accelerated optimization solvers based on second-order methods (e.g., interior-point) have gained momentum with the advent of mature and efficient GPU-accelerated direct linear solvers, such as cuDSS. This paper provides an overview of the current state of the art in the GPU implementation of large-scale second-order optimization solvers, focusing on linear and (local) nonlinear programming. We first highlight the current capabilities and limitations of the state-of-the-art in GPU-accelerated direct linear solvers. Then, we discuss different aspects of various KKT system formulations that can be employed within second-order methods and examine their suitability for GPU implementation. We also discuss strategies to evaluate sparse Jacobian and Hessian matrices on GPUs. Finally, we present numerical results highlighting scalability---often achieving more than 10x speed-ups over the best existing CPU alternatives---and the current limitations of the existing solvers. The paper is concluded by discussing several open questions and implementation challenges.
+In recent years, GPU-accelerated optimization solvers based on second-order methods (e.g., interior-point) have gained momentum with the advent of mature and efficient GPU-accelerated direct linear solvers, such as cuDSS. This paper provides an overview of the current state of the art in GPU-based implementations of large-scale second-order solvers, focusing on linear and (local) nonlinear programming. We begin by highlighting the capabilities and limitations of GPU-accelerated direct linear solvers. Next, we discuss different \gls*{kkt} system formulations for second-order methods and evaluate their suitability for GPU implementation. We also consider strategies for computing sparse Jacobian and Hessian matrices on GPUs. Finally, we present numerical results demonstrating scalability—often exceeding 10x speed-ups over the best CPU alternatives—and examine current limitations of existing solvers. The paper concludes by discussing open questions and implementation challenges.
 \end{abstract}
 
 
 \section{Introduction}\label{eqn:intro}
 
-%% SS: Sungho will write this section
-
-This paper focuses on the continuous optimization problems of the following form:
-\begin{align}\label{eqn:opt}
-  \min_{x } \; & f(x) \quad \text{s.t.} \; g(x) \geq 0 \; ,
+This paper focuses on continuous optimization problems of the form
+\begin{align}
+  \min_{x } \; f(x) \quad \text{s.t.} \; g(x) \geq 0,
 \end{align}
-where $x \in \mathbb{R}^n$ is the optimization decision variable, $f: \mathbb{R}^n \to \mathbb{R}$ is the objective function, and $g: \mathbb{R}^n \to \mathbb{R}^m$ is the constraint function.
-For the remainder of the paper, we assume that $f$ and $g$ are sufficiently smooth.
-We discuss both the situation where $f$ and $g$ are affine, which corresponds to \gls{lp}, and the situation where $f$ and $g$ are nonlinear (and potentially nonconvex), which corresponds to \gls{nlp}. In the nonconvex setting, we only focus on local solution methods.
-Further, we particularly focus on the implementations targeting large and \emph{sparse} problems, where the constraint Jacobian and Lagrangian Hessian are large (e.g., the number of row and columns exceeds one million) and sparse matrices (e.g., tens of non-zero entries per row).
-These problems arise in various applications, including power systems \cite{}, chemical process optimization \cite{}, autonomous control systems \cite{}, and many others \cite{}; these applications often require solving large-scale optimization problems in real-time up to high accuracy to ensure constraint satisfaction and optimal performance.
-Existing solvers include Ipopt, Knitro, HiGHS, Gurobi, etc, and they are all designed to exploit the inherent sparsity to cope with the large problem sizes.
+where \(x \in \mathbb{R}^n\) is the decision variable, and \(f: \mathbb{R}^n \to \mathbb{R}\) and \(g: \mathbb{R}^n \to \mathbb{R}^m\) are sufficiently smooth functions representing the objective and equality constraints, respectively.
+We will primarily discuss \gls*{lp} ($f$ and $g$ are affine) and local solution of \gls*{nlp} ($f$ and $g$ are nonlinear).
+We place special emphasis on large, sparse problems in which the constraint Jacobian and Lagrangian Hessian may have millions of rows and columns, yet each row has only tens of nonzero entries; such problems often arise in power systems, chemical process optimization, autonomous control systems, and many other fields.
+Existing solvers like Ipopt, Knitro, HiGHS, and Gurobi are designed to exploit sparsity and handle very large problem sizes.
 
-While general-purpose GPU computing has made significant progress in recent years, the GPU computing techniques were not actively adopted by the state-of-the-art optimization solvers.
-GPU computing is designed to be most powerful when performing highly repetitive operations on large data sets, due to the SIMD (single instruction, multiple data) architecture of GPUs.
-Matrix multiplications in particular, is performed on a separate hardware unit, called Tensor cores in NVIDIA's architecture, which is further optimized for performing multiply-accumulate operations on large matrices.
-When they are properly applied, GPUs can provide significant accelerations over the serial CPU implementations due to their massive parallelization capabilities.
-For example, for large AI model training, the GPU architectures provide the main computational power for performing dense linear algebra operations at the low-level, thus enabling the training of AI models with massive number of parameters.
-However, many of the problem formulations that have been targeted by the classical mathematical programming solvers are extremely sparse in nature, and they cannot adequately exploit the parallelization at the dense matrix operation level.
-Furthermore, even if some part of the algorithm can benefit from GPU acceleration, the acceleration cannot be applied in an ad-hoc fashion because if the other part of the algorithm runs on the CPU, a lot of host-device data transfer is required, which can be a bottleneck for the overall performance.
-As such, GPU utilization within the state-of-the-art mathematical programming solvers is (i) inherently more challenging, (ii) may not be even suitable for certain class of problems, and (iii) often requires careful redesign the algorithms to allow effective utilization of parallel computing resources.
+GPU computing is most effective for highly repetitive operations on large data sets, thanks to the massively parallel threads.
+The most significant performance gains are observed in dense linear algebra operations, such as matrix multiplications utilized within large AI model training.
+While general-purpose GPU computing has made significant strides in recent years, these techniques have not been widely adopted by the state-of-the-art mathematical programming solvers.
+This is perhaps because many mathematical programming problems are highly sparse and cannot fully exploit the parallelism of dense matrix operations.
+Moreover, even if parts of an algorithm benefit from GPU acceleration, ad hoc application is not possible due to the rather expensive data transfer overhead between host and device memories.
+Consequently, leveraging GPUs in state-of-the-art solvers is (i) inherently more challenging than applying parallelization at dense linear algebra level and (ii) often requires a careful redesign of the underlying algorithms to capitalize on parallel computing resources.
+
 
 First-order algorithms have emerged as a suitable algorithm class for GPU implementation, as they rely typically on sparse matrix-vector multiplication (SpMV) and vector operations, which can be efficiently parallelized on GPUs.
 Notably, several successful implementations have been reported in the recent years, such as cuPDLP \cite{}, cuPDLP+ \cite{}, and cuOSQP \cite{}.
-Although these approaches are highly promising when targeting low or mid-precision solutions, it is difficult to achieve high-precision solutions with these methods, due to the inherent linear convergence of the first-order methods.
-Further, the performance advantage can be observed only when the problem size is large enough, which further limits the applicability of these methods.
+Although these approaches are highly promising when targeting low or mid-precision solutions, it is still difficult to achieve high-precision solutions with these methods, due to the inherent linear convergence of the first-order methods.
 
-The limitations of the first-order algorithms motivates the development of second-order solvers on GPUs.
-As the second-order algorithms are predominantly used methods in the state-of-the-art solvers, when implemented appropriately, they can achieve similarly high precision solutions and be effective for a wide range of problem sizes.
-However, implementing second-order solvers on GPUs is inherently more challenging than first-order methods, as they rely on more sophisticated low-level linear algebra subroutines.
-In particular, at each iteration of the second-order methods it is required to solve a linear system, called \gls{kkt} system.
-As the interior-point (barrier) method is typically employed to handle inequalities in a scalable fashion, these KKT systems are extremely ill-conditioned, as they approach to the solution, which hampers iterative linear algebra approaches even with preconditioning.
-Furthermore, in nonconvex settings, the KKT systems do not exhibit any nice properties, such as positive quasi-definiteness, which makes ensuring the numerical stability of the linear solvers even more challenging.
+The limitations of first-order algorithms motivate the development of second-order solvers on GPUs.
+However, second-order methods heavily relies on linear algebra subroutines for sparse matrix factorization, making their adoption on GPUs challenging.
+When the interior-point (barrier) method is used to handle inequalities at scale, each barrier iteration requires solving a linear system, known as the \gls{kkt} system.
+These KKT systems become extremely ill-conditioned near the solution, which makes the use of iterative linear algebra approaches impossible.
+Furthermore, in nonconvex settings, the KKT systems lack favorable properties, such as positive quasi-definiteness, making it even harder to ensure the numerical stability of the direct solution procedure.
+Due to this nature, the development of second-order solver is inherently tied to the development of robust and efficient direct linear solvers.
 
-Recently, NVIDIA has released cuDSS, a direct linear solver library designed to handle large sparse linear systems on GPUs, which was predated by cuSOLVERRF or the undocumented sparse Cholesky routines shipped with CUDA.
-cuDSS provides mature implementation of direct solvers based on Cholesky, LDL$^\top$, and LU sparse factorization, which are the most commonly used sparse factorization methods in the state-of-the-art mathematical programming solvers, with unprecedented speed and numerical stability.
-Though they do not provide the entire toolset required to exactly port the existing IPM solvers to GPUs, they currently provide the adequate toolset to implement a certain modified, parallel-friendly version of the optimization algorithms.
-Several open-source solvers are already incorporating cuDSS, such as MadNLP \cite{}, a GPU-accelerated nonlinear programming solver.
-When properly configured with GPU-accelerated automatic differentiation system, this solver is known to achieve remarkable performance on large-scale nonlinear programming problems, achieving more than 10x speed-up over the best existing CPU alternatives \cite{}.
-
-In this context, it is worthwhile to summarize the current state of the art in GPU-accelerated second-order optimization solvers, focusing on the current capabilities of cuDSS and its use within mathematical programming solvers.
-This paper aims to provide a comprehensive overview of the current state of the art in GPU-accelerated second-order optimization solvers, focusing on linear and nonlinear programming.
+NVIDIA recently released cuDSS, a direct sparse solver library for GPUs, whose introduction has fueled advances in GPU-accelerated second-order solvers. cuDSS provides robust implementations of direct solvers based on Cholesky and LDL$^\top$, core factorization methods in state-of-the-art mathematical programming solvers. In particular, for several algorithms for convex problems, like LPs and QPs, these capabilities can be directly utilized. For nonconvex problems, while they do not include every component necessary for fully porting IPM solvers, they offer enough functionality to implement modified versions of these algorithms. Several open-source solvers, including MadNLP and Clarabel, already integrate cuDSS in their GPU-accelerated nonlinear programming frameworks, demonstrating more than a 10× speedup on large-scale nonlinear problems compared to top CPU-based alternatives \cite{}.
+In this context, it is timely to summarize the current state of the art in GPU-accelerated second-order optimization solvers, focusing on the current capabilities of cuDSS and its use within mathematical programming solvers.
 
 
-Below we summarize the key focus of the paper and rationale:
+This paper aims provide an overview of the current state of the art in GPU-accelerated second-order optimization solvers for linear and nonlinear programming. Below, we summarize the focus of the paper and its rationale:
 \begin{itemize}[leftmargin=*,itemsep=0pt,parsep=0pt,partopsep=0pt]
-\item We base our discussion on the interior-point method as the measure to handle inequality constraints. An alternative approach, the active-set based methods (or simplex methods for \glspl*{lp}), are not considered in this paper, as they are not typically used in large-scale optimization problems.
-\item We focus on the solution of the KKT systems within the interior-point method, which is the most non-trivial part of the GPU implementation. Although second-order based mathematical programming solvers rely on various low-level kernels and sophisticated strategies to ensure robust performance, most of the computations needed can be implemented with rather simple \texttt{map} or \texttt{reduce} operations, which can be straightforwardly executed on GPUs.
-\item We focus on NVIDIA GPUs and their software stack, as they are the most widely used GPUs in the high-performance computing community. While we expect that the same capabilities in principle can be implemented on other GPU architectures, such as AMD or Intel GPUs, or in a cross-platform fashion, such as OpenCL or KernelAbstractions.jl, NVIDIA currently provides the most mature sparse direct sovler library, cuDSS.
+\item We base our discussion on the interior-point method (for handling inequality constraints), as the alternative pradigm, active-set methods, are known to be less scalable than interior-point methods \cite{} and not commonly used in large-scale optimization.
+\item We concentrate on solving KKT systems within the interior-point method, leaving aside other components such as barrier parameter updates or line search strategies. Although these components of the algorithm requires various low-level kernels, most of them can be implemented through simple \texttt{map} or \texttt{reduce} operations, which can be easily implemented on GPUs. However, solving KKT systems involves more advanced algorithms and warrants a deeper discussion.
+\item We focus on NVIDIA GPUs and their software stack, because as of today, to the best of our knowledge, they are the only platform that provides adequately mature direct spase solver capabilities to be utilized within mathematical programming library.
 \end{itemize}
-In the remainder of the paper, we first summarize the current state-of-the-art in GPU-accelerated direct linear solvers, focusing on their use within mathematical programming solvers.
-Then, we discuss different aspects of various KKT system formulations that can be employed within interior-point methods and examine their suitability for GPU implementation.
-We also discuss strategies for implementing sparse automatic differentiation on GPUs, which is crucial for nonlinear programming.
-Finally, we present numerical results highlighting scalability---often achieving more than 10x speed-ups over the best existing CPU alternatives---and the current limitations of the solvers available within MadSuite, a GPU-accelerated mathematical programming software suite.
+
+In the remainder of the paper, we first review the latest GPU-accelerated direct linear solvers and their application in mathematical programming. We then explore different KKT system formulations for interior-point methods and assess their suitability for GPU implementation. We also discuss approaches for sparse automatic differentiation on GPUs, which is crucial for nonlinear programming. Finally, we present numerical results showcasing the scalability—often exceeding 10x speed-ups over leading CPU alternatives, followed by a discussion of current limitations and open questions.
+
 
 \section{Direct Linear Solvers for Optimization Sovlers}\label{eqn:linear}
 %% SS: Alexis, could you write  this section?
@@ -490,7 +477,7 @@ The numerical results can be reproduced with the source code and Manifest file a
 \subsection{Linear Programming}
 \paragraph{MIPLIB}
 \begin{table}[t]
-  \centering\small
+  \centering\footnotesize
   \caption{Solve time in seconds and SGM10 on instances of MIPLIB without presolve}
   \begin{tabular}{|c|c|cc|cc|cc|cc|}
   \hline
@@ -531,19 +518,21 @@ In this benchmark, we compare the performance of MadNLP running on GPU and Ipopt
 Depending on the number of nonzeros in the augmented KKT system, we categorize the instances into small, medium, and large. The small instances have less than 1 million nonzeros, the medium instances have between 1 million and 10 million nonzeros, and the large instances have more than 10 million nonzeros. The results are summarized in Table \ref{tab:pglib-opf}, and the raw data are available in the paper repository.
 
 \begin{table}[t]
-  \centering\small
+  \centering\footnotesize
   \caption{Solve time in seconds and SGM10 on instances of pglib-opf}\label{tab:pglib-opf}
   \begin{tabular}{|c|c|cc|cc|cc|cc|}
     \hline
-    \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (269)}& \multicolumn{2}{c|}{\textbf{Medium} (94)}& \multicolumn{2}{c|}{\textbf{Large} (20)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (383)}}\\
-                          && \multicolumn{2}{c|}{(1 hr max)}& \multicolumn{2}{c|}{(1 hr max)}& \multicolumn{2}{c|}{(5 hr max)}&&\\
+    \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (10)}& \multicolumn{2}{c|}{\textbf{Medium} (42)}& \multicolumn{2}{c|}{\textbf{Large} (8)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (120)}}\\
+                          && \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}&&\\
                           &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
     \hline
-    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2  \\
-                          & Ipopt (cpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 \\
+    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 10 & 0.1494 & 42 & 1.6971 & 8 & 3.0476 & 60 & 1.5913  \\
+                          & Ipopt (cpu) & 10 & 0.0226 & 42 & 2.7535 & 8 & 34.4380 & 60 & 4.4701  \\
+
     \hline
-    \multirow{2}{*}{$10^{-8}$} & MadNLP (gpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
-                          & Ipopt (cpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
+    \multirow{2}{*}{$10^{-8}$} & MadNLP (gpu) & 10 & 0.2932 & 41 & 4.4315 & 8 & 4.7772 & 60 & 3.6843  \\
+                          & Ipopt (cpu) & 10 & 0.0214 & 42 & 3.0060 & 8 & 32.4090 & 60 & 4.5786  \\
+
     \hline
   \end{tabular}
 \end{table}
@@ -553,21 +542,23 @@ Depending on the number of nonzeros in the augmented KKT system, we categorize t
 The results are summarized in Table \ref{tab:cops}, and the raw data are available in the paper repository.
 
 \begin{table}[t]
-  \centering\small
+  \centering\footnotesize
   \caption{Solve time in seconds and SGM10 on instances of COPS Benchmark}\label{tab:cops}
-  \begin{tabular}{|c|c|cc|cc|cc|cc|}
-    \hline
-    \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (269)}& \multicolumn{2}{c|}{\textbf{Medium} (94)}& \multicolumn{2}{c|}{\textbf{Large} (20)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (383)}}\\
-                          && \multicolumn{2}{c|}{(1 hr max)}& \multicolumn{2}{c|}{(1 hr max)}& \multicolumn{2}{c|}{(5 hr max)}&&\\
-                          &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
-    \hline
-    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2  \\
-                          & Ipopt (cpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 \\
-    \hline
-    \multirow{2}{*}{$10^{-8}$} & MadNLP (gpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
-                          & Ipopt (cpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
-    \hline
-  \end{tabular}
+\begin{tabular}{|c|c|cc|cc|cc|cc|}
+  \hline
+  \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (0)}& \multicolumn{2}{c|}{\textbf{Medium} (3)}& \multicolumn{2}{c|}{\textbf{Large} (3)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (13)}}\\
+                        && \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}&&\\
+                        &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
+  \hline
+    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 0 & -9.0000 & 4 & 4.2332 & 3 & 1.5275 & 6 & 3.0035  \\
+                        & Ipopt (cpu) & 0 & -9.0000 & 3 & 28.1444 & 3 & 20.6658 & 6 & 24.7386  \\
+
+  \hline
+    \multirow{2}{*}{$10^{-8}$} & MadNLP (gpu) & 0 & -9.0000 & 3 & 1.4295 & 3 & 2.0763 & 6 & 1.7485  \\
+                        & Ipopt (cpu) & 0 & -9.0000 & 3 & 3.5525 & 3 & 25.8846 & 6 & 12.0528  \\
+
+  \hline
+\end{tabular}
 \end{table}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
