@@ -188,12 +188,12 @@ This paper focuses on continuous optimization problems of the form
   \min_{x } \; f(x) \quad \text{s.t.} \; g(x) \geq 0,
 \end{align}
 where \(x \in \mathbb{R}^n\) is the decision variable, and \(f: \mathbb{R}^n \to \mathbb{R}\) and \(g: \mathbb{R}^n \to \mathbb{R}^m\) are sufficiently smooth functions representing the objective and equality constraints, respectively.
+Here, we do not explicitly consider equality constraints for simplicity.
 We will primarily discuss \gls*{lp} ($f$ and $g$ are affine) and local solution of \gls*{nlp} ($f$ and $g$ are nonlinear).
-We place special emphasis on large, sparse problems in which the constraint Jacobian and Lagrangian Hessian may have millions of rows and columns, yet each row has only tens of nonzero entries; such problems often arise in power systems, chemical process optimization, autonomous control systems, and many other fields.
-Existing solvers like Ipopt, Knitro, HiGHS, and Gurobi are designed to exploit sparsity and handle very large problem sizes.
+We place special emphasis on large, sparse problems in which the constraint Jacobian and Lagrangian Hessian may have millions of rows and columns, yet each row has only tens of nonzero entries.
+Existing solvers like Ipopt, Knitro, OSQP, HiGHS, and Gurobi are designed to exploit sparsity and handle potentially large problem sizes.
 
-GPU computing is most effective for highly repetitive operations on large data sets, thanks to the massively parallel threads.
-The most significant performance gains are observed in dense linear algebra operations, such as matrix multiplications utilized within large AI model training.
+GPU computing is most effective for highly repetitive operations on large data sets, such as dense matrix multiplication (GEMM) routines utilized within large AI model training.
 While general-purpose GPU computing has made significant strides in recent years, these techniques have not been widely adopted by the state-of-the-art mathematical programming solvers.
 This is perhaps because many mathematical programming problems are highly sparse and cannot fully exploit the parallelism of dense matrix operations.
 Moreover, even if parts of an algorithm benefit from GPU acceleration, ad hoc application is not possible due to the rather expensive data transfer overhead between host and device memories.
@@ -442,24 +442,22 @@ the equality constraints are relaxed into doubly bounded inequalities with a sma
 
 \section{Algebraic Modeling Systems and Automatic Differentiation}\label{eqn:ad}
 For nonlinear programming, the evaluation of the functions $f$ and $g$ and their derivatives is crucial for the performance of the optimization solvers.
-In most modern optimization workflows, the derivative evaluation code (or interpreter) is generated in a fully automated fashion via the use of algebraic modeling systems designed for mathematical programming.
-It is of interest to develop an algebraic modeling system that can generate the code for evaluating and differentiating the functions $f$ and $g$ on GPUs.
-This is not only because they are major contributors to the overall computational cost, but also because if the derivatives have to be evaluated on CPUs, the host-device data transfer can become a bottleneck for the overall performance.
+In most modern optimization workflows, the derivative evaluation code (or interpreter) is generated in a fully automated fashion via the use of algebraic modeling systems equipped with \gls*{ad} capabilities, such as AMPL, GAMS, CasADi, JuMP, Pyomo, and others.
+Thus, it is of interest to develop an algebraic modeling system that can automatically generate the native GPU code for evaluating and differentiating the functions $f$ and $g$.
+This is crucial for ensuring the GPU residency of the entire optimization workflow (avoiding data transfer to/from the host memory).
 
-The parallelization of derivative evaluation requires exploiting the internal structure of the functions $f$ and $g$, as the function oracles by themselves do not permit performing parallelization.
-In particular, functions $f$ and $g$ observed within many practical instances of the large-scale sparse mathematical programs exhibit highly repetitive structure that can be exploited by GPUs.
-For example, like the following example:
-\begin{align*}
-  f(x) &= \sum_{p\in P} f^o(x; p), \quad g(x) = \left\{g^o(x; p)\right\}_{p\in P},
-\end{align*}
-$f$ may be a sum of many terms, each of which is a simple expressions, such as affine, polynomial, or simple nonlinear functions, and $g$ may be a collection of many constraints generated from a common template, such as power flow equations applied to many branches of a power network or material and energy balance equations applied to many streams and units in a chemical process. In such cases, the evaluation of the functions $f$ and $g$ and their derivatives is embarassingly parallelizable, and they are suitable for executing on GPUs.
+The parallelization of derivative evaluation requires exploiting the internal structure of the functions $f$ and $g$.
+We particularly focus on the fac that many practical instances of the large-scale sparse mathematical programs exhibit highly repetitive structure. For example, $f$ may be a sum of many terms (e.g., $f(x) = \sum_{p\in P} f^o(x; p)$) and $g$ may be a collection of many constraints generated from a common template (e.g., $g(x) = \left\{g^o(x; p)\right\}_{p\in P}$).
+In such cases, the evaluation and differentiation of $f$ and $g$ is embarassingly parallelizable, and they are suitable for executing on GPUs.
 
-Moreover, one can even develop an algebraic modeling system that generates the code for evaluating and differentiating the functions $f$ and $g$ in a highly parallelizable manner, as long as the repetive structure is informed to the modeling system. In order to implement such a capabilities, it is necessary to design a modeling syntax that allows the user to specify the repetitive structures within $f$ and $g$. The classical modeling systems, such as AMPL, GAMS, CasADi, and JuMP, do not provide such capabilities, but more recently developed systems, such as ExaModels.jl and Gravity, provide such capabilities. For example, ExaModels.jl requires the user to specify the objective and constraint functions always in a form of iterator, such as
+One can develop an algebraic modeling system that auto-generates the derivative evaluation code exploiting this structure, as long as the repetive structure is informed to the modeling system. The emerging algebraic modeling systems, such as ExaModels.jl and Gravity, are desinged to capture such repeated structures. For example, ExaModels.jl requires the user to specify the objective and constraint functions always in a form of iterator, such as
 \begin{lstlisting}
   objective(c, 100 * (x[i-1]^2 - x[i])^2 + (x[i-1] - 1)^2 for i = 2:N)
 \end{lstlisting}
 which corresponds to the case of $f^o(x; p) = 100(x[p-1]^2 - x[p])^2 + (x[p-1]-1)^2$ and $p=\{2,\cdots,N\}$.
 This syntax allows the modeling system to store the model function information in a structured fashion and generate the code for evaluating and differentiating (via reverse mode \gls*{ad}) the functions $f$ and $g$ in a highly parallelizable manner.
+The classical modeling systems, such as AMPL, GAMS, CasADi, and JuMP, currently do not store the data in such a structured format, and thus, in order to fully leverage the GPU capabilities, the model should be implemented with the GPU-compatible modeling platforms, such as ExaModels.jl.
+
 
 
 
@@ -476,50 +474,34 @@ The numerical results can be reproduced with the source code and Manifest file a
 
 \subsection{Linear Programming}
 \paragraph{MIPLIB}
-\begin{table}[t]
-  \centering\footnotesize
-  \caption{Solve time in seconds and SGM10 on instances of MIPLIB without presolve}
+% \begin{table}[t]
+%   \centering\footnotesize
+%   \caption{Solve time in seconds and SGM10 on instances of MIPLIB without presolve}
+% \end{table}
+\begin{center}
   \begin{tabular}{|c|c|cc|cc|cc|cc|}
-  \hline
-  \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (0)}& \multicolumn{2}{c|}{\textbf{Medium} (0)}& \multicolumn{2}{c|}{\textbf{Large} (4)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (4)}}\\
-                        && \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}&&\\
-                        &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
-  \hline
+    \hline
+    \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (0)}& \multicolumn{2}{c|}{\textbf{Medium} (0)}& \multicolumn{2}{c|}{\textbf{Large} (4)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (4)}}\\
+                          && \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}&&\\
+                          &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
+    \hline
     \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 0 & -9.0 & 0 & -9.0 & 2 & 1.2854801994313352 & 2 & 1.2854801994313352  \\
-                        & Ipopt (cpu) & 0 & -9.0 & 0 & -9.0 & 2 & 13.338996752053031 & 2 & 13.338996752053031  \\
+                          & Ipopt (cpu) & 0 & -9.0 & 0 & -9.0 & 2 & 13.338996752053031 & 2 & 13.338996752053031  \\
 
-  \hline
+    \hline
     \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 0 & -9.0 & 0 & -9.0 & 2 & 1.8189292455720203 & 2 & 1.8189292455720203  \\
-                        & Ipopt (cpu) & 0 & -9.0 & 0 & -9.0 & 2 & 15.189445328247583 & 2 & 15.189445328247583  \\
+                          & Ipopt (cpu) & 0 & -9.0 & 0 & -9.0 & 2 & 15.189445328247583 & 2 & 15.189445328247583  \\
 
-  \hline
-\end{tabular}
-  % \begin{tabular}{|c|c|cc|cc|cc|cc|}
-  %   \hline
-  %   \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (269)}& \multicolumn{2}{c|}{\textbf{Medium} (94)}& \multicolumn{2}{c|}{\textbf{Large} (20)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (383)}}\\
-  %                         && \multicolumn{2}{c|}{(1 hr max)}& \multicolumn{2}{c|}{(1 hr max)}& \multicolumn{2}{c|}{(5 hr max)}&&\\
-  %                         &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
-  %   \hline
-  %   \multirow{3}{*}{$10^{-4}$} & MadIPM & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2  \\
-  %                         & HiGHS & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 \\
-  %                         & Gurobi & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 & 66 & 0.2 \\
-  %   \hline
-  %   \multirow{3}{*}{$10^{-8}$} & MadIPM & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
-  %                         & HiGHS & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
-  %                         & Gurobi & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
-  %   \hline
-  % \end{tabular}
-\end{table}
+    \hline
+  \end{tabular}
+\end{center}
 
 \subsection{Nonlinear Programming}
 In this benchmark, we compare the performance of MadNLP running on GPU and Ipopt running on CPU. For both solvers, the \gls*{nlp} function callbacks are provided by ExaModels.jl (either running on GPU or CPU). MadNLP is configured with cuDSS as the linear solver, while Ipopt is configured with Ma27 as the linear solver. Ipopt+ExaModels+Ma27 is currently the best known configuration for solving large, sparse nonlinear programming problems on a single-threaded CPU, and it is used as the baseline for comparison. The solver performance is benchmarked against the pglib-opf benchmark suite \cite{} and the COPS benchmark suite \cite{}. CUTEst \cite{} is excluded from the benchmark, as the library mostly contains small- to medium-sized nonlinear programming problems, which are not suitable for benchmarking the performance of GPU-accelerated solvers, and currently there is no ExaModels.jl implementation of CUTEst.
 
 \paragraph{AC Optimal Power Flow}
 Depending on the number of nonzeros in the augmented KKT system, we categorize the instances into small, medium, and large. The small instances have less than 1 million nonzeros, the medium instances have between 1 million and 10 million nonzeros, and the large instances have more than 10 million nonzeros. The results are summarized in Table \ref{tab:pglib-opf}, and the raw data are available in the paper repository.
-
-\begin{table}[t]
-  \centering\footnotesize
-  \caption{Solve time in seconds and SGM10 on instances of pglib-opf}\label{tab:pglib-opf}
+\begin{center}
   \begin{tabular}{|c|c|cc|cc|cc|cc|}
     \hline
     \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (10)}& \multicolumn{2}{c|}{\textbf{Medium} (42)}& \multicolumn{2}{c|}{\textbf{Large} (8)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (120)}}\\
@@ -535,31 +517,38 @@ Depending on the number of nonzeros in the augmented KKT system, we categorize t
 
     \hline
   \end{tabular}
-\end{table}
+\end{center}
+
+% \begin{table}[t]
+%   \centering\footnotesize
+%   \caption{Solve time in seconds and SGM10 on instances of pglib-opf}\label{tab:pglib-opf}
+% \end{table}
 
 
 \paragraph{COPS Benchmark}
 The results are summarized in Table \ref{tab:cops}, and the raw data are available in the paper repository.
-
-\begin{table}[t]
-  \centering\footnotesize
-  \caption{Solve time in seconds and SGM10 on instances of COPS Benchmark}\label{tab:cops}
-\begin{tabular}{|c|c|cc|cc|cc|cc|}
-  \hline
-  \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (0)}& \multicolumn{2}{c|}{\textbf{Medium} (3)}& \multicolumn{2}{c|}{\textbf{Large} (3)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (13)}}\\
-                        && \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}&&\\
-                        &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
-  \hline
+\begin{center}
+  \begin{tabular}{|c|c|cc|cc|cc|cc|}
+    \hline
+    \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (0)}& \multicolumn{2}{c|}{\textbf{Medium} (3)}& \multicolumn{2}{c|}{\textbf{Large} (3)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (13)}}\\
+                          && \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}&&\\
+                          &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
+    \hline
     \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 0 & -9.0000 & 4 & 4.2332 & 3 & 1.5275 & 6 & 3.0035  \\
-                        & Ipopt (cpu) & 0 & -9.0000 & 3 & 28.1444 & 3 & 20.6658 & 6 & 24.7386  \\
+                          & Ipopt (cpu) & 0 & -9.0000 & 3 & 28.1444 & 3 & 20.6658 & 6 & 24.7386  \\
 
-  \hline
+    \hline
     \multirow{2}{*}{$10^{-8}$} & MadNLP (gpu) & 0 & -9.0000 & 3 & 1.4295 & 3 & 2.0763 & 6 & 1.7485  \\
-                        & Ipopt (cpu) & 0 & -9.0000 & 3 & 3.5525 & 3 & 25.8846 & 6 & 12.0528  \\
+                          & Ipopt (cpu) & 0 & -9.0000 & 3 & 3.5525 & 3 & 25.8846 & 6 & 12.0528  \\
 
-  \hline
-\end{tabular}
-\end{table}
+    \hline
+  \end{tabular}
+\end{center}
+
+% \begin{table}[t]
+%   \centering\footnotesize
+%   \caption{Solve time in seconds and SGM10 on instances of COPS Benchmark}\label{tab:cops}
+% \end{table}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
