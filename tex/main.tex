@@ -187,7 +187,7 @@ In recent years, GPU-accelerated second-order (e.g., interior-point) optimizatio
 
 This paper focuses on the continuous optimization problems of the following form:
 \begin{align}\label{eqn:opt}
-  \min_{x } \; & f(x) \quad \text{s.t.} \; g(x) = 0 \; , \; x \geq 0 \; ,
+  \min_{x } \; & f(x) \quad \text{s.t.} \; g(x) \geq 0 \; ,
 \end{align}
 where $x \in \mathbb{R}^n$ is the optimization decision variable, $f: \mathbb{R}^n \to \mathbb{R}$ is the objective function, and $g: \mathbb{R}^n \to \mathbb{R}^m$ is the constraint function.
 For the remainder of the paper, we assume that $f$ and $g$ are sufficiently smooth.
@@ -296,202 +296,162 @@ Below we summarize the existing strategies and their potential use within GPU so
 
 
 \section{Interior-Point (Barrier) Methods and KKT Systems}\label{eqn:ipm}
-The \gls*{ipm} is a class of optimization algorithms that are designed to solve inequality-constrained optimization problems, such as \cref{eqn:opt}, by transforming the problem into a sequence of unconstrained optimization problems using a barrier function. Then at iteration $k$, the descent direction $d_k$ is computed using
-Newton method, resulting a sequence of \gls{kkt} linear systems
-\begin{equation}
-  K_k d_k = r_k \; , \; \forall k=1, \cdots, +\infty \; ,
-\end{equation}
-with $r_k$ a right-hand-side and $K_k$ a (sparse) symmetric matrix.
-The matrix $K_k$ depends on the type of problems we are solving. In the
-following subsections, we will see that $K_k$ can be written as a positive
-definite matrix or a symmetric quasi-definite matrix.
+The \gls*{ipm} is a class of optimization algorithms that are designed to solve inequality-constrained optimization problems, such as \cref{eqn:opt}, by transforming the problem into a sequence of unconstrained optimization problems using a barrier function.
 
-\subsection{Linear programming} \label{sec:ipm:LP}
-A linear problem \eqref{eqn:opt} rewrites as
-\begin{equation}\label{eq:LP}
-  \min_{x} \; c^\top x \quad \text{s.t.} \quad A x = b \; , \; x \geq 0 \; ,
-\end{equation}
-with $(c, A, b) \in \mathbb{R}^n \times \mathbb{R}^{m \times n} \times \mathbb{R}^{m}$ given problem data.
-For a given barrier parameter $\mu_k$, \gls{ipm} solves the barrier subproblem for $x > 0$
-\begin{equation}\label{eq:barrierLP}
-  \min_{x} \; c^\top x - \mu_k \sum_{i=1}^n \log(x_i) \quad \text{s.t.}  \quad Ax = b \; ,
-\end{equation}
-whose KKT conditions are
-\begin{equation}
-  c + A^\top y - s = 0 \; , \quad Ax - b = 0 \; , \quad x \cdot s = \mu e \; ,
-\end{equation}
-for $y\in \mathbb{R}^m$ and $s \in \mathbb{R}^n$ the multipliers associated
-respectively to the equality constraint and the bound constraints.
-At each iteration, the algorithm updates the barrier parameter $\mu_k$ using
-the current complementarity measure $\delta(x, s, y) = \frac{1}{n} x^\top s$.
-
-The \gls{kkt} linear system associated to \eqref{eq:barrierLP} is
-\begin{equation}
-  \label{eq:LP:unreduced}
-  \begin{bmatrix}
-    0 & A^\top & - I \\
-    A & 0 & 0 \\
-    S & 0 & X
-  \end{bmatrix}
-  \begin{bmatrix}
-    \Delta x \\ \Delta y \\ \Delta s
-  \end{bmatrix}
-  =  -
-  \begin{bmatrix}
-    c + A^\top y - s \\
-    Ax - b \\
-    XS e - \sigma \mu e
-  \end{bmatrix}\; ,
-\end{equation}
-with $\sigma$ a centering parameter computed by the \gls{ipm} algorithm.
-
-For $\Sigma := X^{-1} S$, the system \eqref{eq:LP:unreduced} is equivalent to
-the \emph{augmented KKT system}
-\begin{equation}
-  \label{eq:LP:augmented}
-  \begin{bmatrix}
-    \Sigma & A^\top \\
-    A & 0
-  \end{bmatrix}
-  \begin{bmatrix}
-    \Delta x \\ \Delta y
-  \end{bmatrix}
-  =  -
-  \begin{bmatrix}
-    c + A^\top y - \sigma \mu X^{-1} e \\
-    Ax - b
-  \end{bmatrix}\; ,
-\end{equation}
-which can be further reduced down to the \emph{normal KKT system}
-\begin{equation}
-  \label{eq:LP:normal}
-  \left(A \Sigma^{-1} A^\top \right) \Delta y =
-  Ax - b - A\Sigma^{-1} \left( c + A^\top y - \sigma \mu X^{-1} e \right) \;.
-\end{equation}
-The matrix $\Sigma$ being diagonal, it is easy to inverse.
-If $A$ has full row-rank, the matrix $A \Sigma^{-1} A^\top$ is positive
-definite and Cholesky factorizable.
-
-On its end, the augmented KKT system~\eqref{eq:LP:augmented} is
-symmetric indefinite and without further treatment has to be
-decomposed by a $L B L^{\top}$ factorization.
-A usual workaround is introduce regularization parameters
-$(\delta_x, \delta_c) > 0$ and to solve instead the \emph{regularized KKT system}:
-\begin{equation}
-  \label{eq:LP:regularized}
-  \begin{bmatrix}
-    \Sigma + \delta_x I & A^\top \\
-    A & -\delta_c I
-  \end{bmatrix}
-  \begin{bmatrix}
-    \Delta x \\ \Delta y
-  \end{bmatrix}
-  =  -
-  \begin{bmatrix}
-    c + A^\top y - \sigma \mu X^{-1} e \\
-    Ax - b
-  \end{bmatrix}\; .
-\end{equation}
-The matrix $\Sigma$ being positive definite, the system \eqref{eq:LP:regularized} is SQD.
-
-
-
-
-
-\subsection{Nonlinear programming}
 In most of practical implementations, slack variables are introduced as follows:
 \begin{align}\label{eqn:barrier}
-  \min_{x,s } \; & f(x) - \mu \sum_{i=1}^m \log(s_i) \quad \text{s.t.} \; g(x) + s = 0.
+  \min_{x,s } \; & f(x) - \mu \sum_{i=1}^m \log(s_i) \quad \text{s.t.} \; g(x) - s = 0 \;.
 \end{align}
 Here, $s \in \mathbb{R}^m$ is the slack variable, and $\mu > 0$ is the barrier parameter that is gradually reduced to zero as the algorithm progresses.
 The KKT conditions for the problem \cref{eqn:barrier} are given by:
 \begin{align}\label{eqn:kkt}
-  \nabla f(x) + \nabla g(x)^\top \lambda = 0, \quad
-  \Lambda s  = \mu e,\quad
-  g(x) + s =   0 ,
+  \nabla f(x) - \nabla g(x)^\top \lambda = 0, \quad
+  \Lambda S e = \mu e,\quad
+  g(x) - s =   0 ,
 \end{align}
-where $\lambda \in \mathbb{R}^m$ is the Lagrange multiplier, $\Lambda = \text{diag}(s)$ is the diagonal matrix of slack variables, and $e$ is the vector of ones.
+where $\lambda \in \mathbb{R}^m$ is the Lagrange multiplier, $S = \text{diag}(s)$
+and $\Lambda = \text{diag}(\lambda)$ are the diagonal matrices of slack variables and
+multipliers respectively, and $e$ is the vector of ones.
 
-\Gls*{ipm} solves \cref{eqn:kkt} iteratively, where at each iteration, the KKT system:
+\subsection{KKT systems}
+\Gls*{ipm} solves \cref{eqn:kkt} for $(x, \lambda, s)$ iteratively using Newton method. At each iteration, we obtain the
+search direction by solving the symmetric KKT system:
 \begin{align}\label{eqn:kkt_system}
   \begin{bmatrix}
-    \nabla^2 \mathcal{L}(x,\lambda) + \delta_w I&  & \nabla g(x)^\top \\
-     & S^{-1}\Lambda + \delta_w I& I\\
-    \nabla g(x) & I & - \delta_c I\\
+    \nabla^2_{x x} \mathcal{L}(x,\lambda) && \nabla g(x)^\top  \\
+                                          & S^{-1}\Lambda & -I \\
+    \nabla g(x) & -I & \\
   \end{bmatrix}
   \begin{bmatrix}
-    d_x\\
-    d_s\\
-    d_\lambda\\
+    \phantom{-}d_x\\
+    \phantom{-}d_s \\
+    -d_\lambda
   \end{bmatrix} =
   -\begin{bmatrix}
-    \nabla f(x) + \nabla g(x)^\top \lambda\\
-    \lambda - \mu S^{-1} e\\
-    g(x) + s\\
+    \nabla f(x) - \nabla g(x)^\top \lambda\\
+    \Lambda e - \mu S^{-1} e \\
+    g(x) - s\\
   \end{bmatrix},
 \end{align}
-is solved to obtain the search direction. Here, $\mathcal{L}(x,\lambda,s)$ is the Lagrangian function, $\delta_w\geq 0$ is a regularization parameter for the primal variables, and $\delta_c\geq 0$ is a regularization parameter for the dual variables.
-These parameters are increased until the number of positive, negative, and zero eigenvalues (so-called inertia, available as a byproduct of numerical factorization) of the KKT system matrix in \eqref{eqn:kkt_system} matches $(n, m, 0)$.
-The system in \eqref{eqn:kkt_system} is indefinite in general, but for strongly convex cases, the $2x2$ block in the top left corner is positive definite, and thus, the system is positive quasi-definite. In such a case, the system can be solved using LDL$^\top$ factorization with static pivoting.
-
-Since the block structure in \cref{eqn:kkt_system} admits several possibilities for further reduction, the KKT system can be reformulated in several different ways:
-
-\paragraph{Eliminating slack variables}
-$S^{-1}\Lambda + \delta_w I$ is always invertible due to the nature of primal-dual interior-point method, as the slack $s$ and the dual variable $\lambda$ are always forced to be positive. The resulting system can be written as follows:
-\begin{align}\label{eqn:kkt_2}
+Here,
+$\mathcal{L}(x,\lambda,s)  := f(x) - \lambda^\top g(x)$ is the Lagrangian function.
+By removing $d_s = \Lambda^{-1} \left(\mu e - S d_\lambda - S\Lambda e\right)$, the system
+\eqref{eqn:kkt_system} is equivalent to the following $2\times 2$ KKT system:
+\begin{equation}\label{eqn:augmentedKKT}
   \begin{bmatrix}
-    \nabla^2 \mathcal{L}(x,\lambda) + \delta_w I&  \nabla g(x)^\top \\
-    \nabla g(x) &  - \delta_c I - (S^{-1}\Lambda + \delta_w I)^{-1}\\
+    \nabla^2_{x x} \mathcal{L}(x,\lambda) + \delta_w I & \nabla g(x)^\top \\
+    \nabla g(x) &  - \delta_c I - \Lambda^{-1} S
   \end{bmatrix}
   \begin{bmatrix}
-    *\\
-    *\\
+    \phantom{-}d_x\\
+    - d_\lambda
   \end{bmatrix} =
   -\begin{bmatrix}
-    *\\
-    *\\
+    \nabla f(x) - \nabla g(x)^\top \lambda\\
+    g(x) - \mu \Lambda^{-1} e
   \end{bmatrix},
-\end{align}
-Since $S^{-1}\Lambda + \delta_w I$ is diagonal, the elimination procedure does not incur significant computational overhead and the number of non-zero entries in the resulting system is not increased. However, since $S^{-1}\Lambda$ can be arbitrarily ill-conditioned, the numerical stability of the resulting system can be compromised. This system is positive quasi-definite if the original problem is strongly convex (thus LDL$^\top$ factorizable), but for general linear programs, the $(1,1)$-block is not guaranteed to be positive definite. For general \glspl*{nlp}, even the $(1,1)$-block can have negative eigenvalues, and thus, LBL$^\top$ method with partial pivoting needs to be employed to solve the in a numerically stable fashion.
+\end{equation}
+Note that we have introduced in \eqref{eqn:augmentedKKT} regularization parameters for the primal variables
+$\delta_w\geq 0$ and for the dual variables $\delta_c\geq 0$. We will detail
+in the following section how to tune the regularization parameters depending on
+the class of problems we are solving.
 
-\paragraph{Eliminating primal and slack variables}
-This is less common, but the primal 1x1 block $\nabla^2 \mathcal{L}(x,\lambda) + \delta_w I$ is invertible either if the problem is strongly convex or if the default regularization parameter $\delta_w$ is strictly positive. Since slack can also be eliminated without incurring increase in the density, slack can be eliminated as well, and the following system can be obtained:
+Since the block structure in \cref{eqn:augmentedKKT} admits several possibilities for further reduction, the KKT system can be condensed in several different ways.
+
+% \paragraph{Eliminating slack variables}
+% $S^{-1}\Lambda + \delta_w I$ is always invertible due to the nature of primal-dual interior-point method, as the slack $s$ and the dual variable $\lambda$ are always forced to be positive. The resulting system can be written as follows:
+% \begin{align}\label{eqn:kkt_2}
+%   \begin{bmatrix}
+%     \nabla^2 \mathcal{L}(x,\lambda) + \delta_w I&  \nabla g(x)^\top \\
+%     \nabla g(x) &  - \delta_c I - (S^{-1}\Lambda + \delta_w I)^{-1}\\
+%   \end{bmatrix}
+%   \begin{bmatrix}
+%     *\\
+%     *\\
+%   \end{bmatrix} =
+%   -\begin{bmatrix}
+%     *\\
+%     *\\
+%   \end{bmatrix},
+% \end{align}
+% Since $S^{-1}\Lambda + \delta_w I$ is diagonal, the elimination procedure does not incur significant computational overhead and the number of non-zero entries in the resulting system is not increased. However, since $S^{-1}\Lambda$ can be arbitrarily ill-conditioned, the numerical stability of the resulting system can be compromised. This system is positive quasi-definite if the original problem is strongly convex (thus LDL$^\top$ factorizable), but for general linear programs, the $(1,1)$-block is not guaranteed to be positive definite. For general \glspl*{nlp}, even the $(1,1)$-block can have negative eigenvalues, and thus, LBL$^\top$ method with partial pivoting needs to be employed to solve the in a numerically stable fashion.
+
+\paragraph{Primal condensed system.}
+The 2x2 block $ \delta_c I+ \Lambda^{-1}S $ is always invertible given the structure. The
+\emph{primal condensed KKT system} can be written as follows:
+\begin{align}\label{eqn:kkt_primal}
+  % \left(\nabla^2 \mathcal{L}(x,\lambda) + \delta_w I + \nabla g(x)^\top \left(\delta_c I + (S^{-1}\Lambda + \delta_w I)^{-1}\right) \nabla g(x)\right)
+  % \begin{bmatrix}
+  %   *\\
+  % \end{bmatrix} =
+  % -\begin{bmatrix}
+  %   *\\
+  % \end{bmatrix}.
+  \left(\nabla^2_{x x} \mathcal{L}(x, \lambda) + \delta_w I + \nabla g(x)^\top (\delta_c I + \Lambda^{-1} S)^{-1} \nabla g(x)  \right) d_x = - r_p \; ,
+\end{align}
+with $r_p$ an appropriate right-hand-side.
+Compared to \eqref{eqn:augmentedKKT}, the system size is further reduced.
+However, since the Jacobian $\nabla g(x)$ can have dense rows, the condensed system can become arbitrarily dense, which can significantly increase the computational cost of the linear solver. Furthermore, this elimination strategy suffers from the same potential ill-conditioning issue as in \eqref{eqn:augmentedKKT}.
+However, this system is always positive definite for appropriate choice of the
+regularization $(\delta_w, \delta_p)$.
+Thus, the system can always be Cholesky factorized with static pivoting, even for nonlinear programs.
+
+\paragraph{Dual condensed system.}
+This is less common, but the primal 1x1 block $\nabla^2 \mathcal{L}(x,\lambda) + \delta_w I$ is invertible either if the problem is strongly convex or if the default regularization parameter $\delta_w$ is strictly positive.
+By eliminating the first block of rows, we obtain the \emph{dual condensed KKT system}:
 \begin{align}\label{eqn:kkt_dual}
-  \left(- \delta_c I - (S^{-1}\Lambda + \delta_w I)^{-1} - \nabla g(x)\left(\nabla^2 \mathcal{L}(x,\lambda) + \delta_w I\right)^{-1} \nabla g(x)^\top\right)
-  \begin{bmatrix}
-    *\\
-  \end{bmatrix} =
-  -\begin{bmatrix}
-    *\\
-  \end{bmatrix},
+  \left(\delta_c I + \Lambda^{-1}S + \nabla g(x)\left(\nabla_{x x}^2 \mathcal{L}(x,\lambda) + \delta_w I\right)^{-1} \nabla g(x)^\top\right)
+  d_\lambda = - r_d \; ,
+  % \begin{bmatrix}
+  %   *\\
+  % \end{bmatrix} =
+  % -\begin{bmatrix}
+  %   *\\
+  % \end{bmatrix},
 \end{align}
-Unless $\nabla^2 \mathcal{L}(x,\lambda) + \delta_w I$ is diagonal, this system can be arbitrarily dense, and thus, this elimination needs to be used with caution. Assuming that the primal Hessian is positive definite, this system is always negative definite, thus is Cholesky factorizable.
-
-\paragraph{Eliminating slack and dual variables}
-The 2x2 block containing $S^{-1}\Lambda + \delta_w$ and $-\delta_c I$ is always be invertible given the structure. The resulting system can be written as follows:
-\begin{align}\label{eqn:kkt_1}
-  \left(\nabla^2 \mathcal{L}(x,\lambda) + \delta_w I + \nabla g(x)^\top \left(\delta_c I + (S^{-1}\Lambda + \delta_w I)^{-1}\right) \nabla g(x)\right)
-  \begin{bmatrix}
-    *\\
-  \end{bmatrix} =
-  -\begin{bmatrix}
-    *\\
-  \end{bmatrix}.
-\end{align}
-In the context of linear programming, this system is often called normal equations.
-Compared to \eqref{eqn:kkt_2}, the system size is further reduced. However, since the matrix $ $ can be arbitrarily dense, the resulting system can be arbitrarily dense as well, which can significantly increase the computational cost of the linear solver. Furthermore, this elimination strategy suffers from the same potential ill-conditioning issue as in \eqref{eqn:kkt_2}. Upon standard inertial correction, this system is always positive definite. Thus, the system can always be Cholesky factorized with static pivoting, even for nonlinear programs.
+with $r_d$ an appropriate right-hand-side.
+In the context of linear programming, this system is often called \emph{normal equations}.
+Unless $\nabla^2 \mathcal{L}(x,\lambda) + \delta_w I$ is diagonal, this system can be arbitrarily dense, and thus, this elimination needs to be used with caution. Assuming that the primal Hessian is positive definite, this system is always positive definite, thus is Cholesky factorizable.
 
 
-For GPU solvers for \glspl*{nlp}, \cref{eqn:kkt_1} is the most suitable formulation and the other formulations are bound to exhibit numerical instabilities. Thus, the currently existing solver MadNLP.jl is based on \cref{eqn:kkt_1} formulation. To handle equality constraints more efficiently, the equality constraints are relaxed into doubly bounded inequalities with a small gap, called LiftedKKT system strategy.
+\subsection{Regularization parameters}
+As seen before, the algorithm tunes the regularization parameters $\delta_w$
+and $\delta_w$ to ensure the system \eqref{eqn:augmentedKKT} is well-posed.
 
-For strongly convex programs, all four formulations \cref{eqn:kkt_system,eqn:kkt_2,eqn:kkt_dual,eqn:kkt_1} are appropriate, so one may choose the best one based on the sparsity pattern and degree of ill-conditioning of the KKT system matrix. For general quadratic programs, \cref{eqn:kkt_1} is most suitable, though other formulations, such as \cref{eqn:kkt_system,eqn:kkt_2,eqn:kkt_dual} can also be used when proper regularization, pivot perturbation, and/or iterative refinement strategies are employed. Within the existing solver MadIPM, the original KKT system \cref{eqn:kkt_system} is solved with LDL$^\top$ factorization with some primal-dual regularization strategy ensuring the numerical stability of factorization process.
+\paragraph{Convex programming.}
 
+If the problem~\eqref{eqn:opt} is convex, the system \eqref{eqn:augmentedKKT}
+becomes SQD for all $(\delta_x, \delta_c) > 0$. By setting
+$\delta_w = \delta_c = \varepsilon$, we obtain a strongly factorizable regularized KKT system,
+easing the solution of \eqref{eqn:augmentedKKT}.
+This idea has lead to several robust \gls{ipm} implementations~\cite{}.
+This is the approach adopted in MadIPM.
+
+For linear program, the dual condensed KKT system~\eqref{eqn:kkt_dual} is often used
+by default as the diagonal block $\nabla^2_{x x} \mathcal{L}(x, \lambda) + \delta_w I$ is easy
+to invert in that case. Customized implementation of the Cholesky factorization
+are used to handle dense columns in the Jacobian $\nabla g(x)$ \cite{}.
+
+For general quadratic programs, \cref{eqn:kkt_primal} is most suitable, though other formulations, such as \cref{eqn:kkt_system,eqn:augmentedKKT,eqn:kkt_dual} can also be used when proper regularization, pivot perturbation, and/or iterative refinement strategies are employed.
+
+For strongly convex programs, all four formulations \cref{eqn:kkt_system,eqn:augmentedKKT,eqn:kkt_dual,eqn:kkt_primal} are appropriate, so one may choose the best one based on the sparsity pattern and degree of ill-conditioning of the KKT system matrix.
+
+
+\paragraph{Nonlinear programming.}
+The case of nonlinear programming is different, as the solver has to accomodate
+the local nonconvexities in the model.
+
+Traditional implementations of \gls{ipm} for nonlinear programming use an \emph{inertia correction} mechanism.
+The regularization parameters $(\delta_w, \delta_c)$ are increased until the number of positive, negative, and zero eigenvalues (so-called inertia, available as a byproduct of the LDL$^\top$ and LBL$^\top$ factorizations) of the KKT system matrix in \eqref{eqn:kkt_system} is equal to $(n+m, m, 0)$.
+
+For GPU solvers for \glspl*{nlp}, \cref{eqn:kkt_primal} is the most suitable formulation as the other formulations are bound to exhibit numerical instabilities.
+Notably, this is approach used in MadNLP.jl.
+If the problem~\eqref{eqn:opt} has additional equality constraints,
+the equality constraints are relaxed into doubly bounded inequalities with a small gap, called LiftedKKT system strategy.
 
 
 %% SS: Francois, could you lead writing this section? I can also take a pass.
 
-% \subsection{Linear Programming}
-% \subsection{Nonlinear Programming}
 
 \section{Algebraic Modeling Systems and Automatic Differentiation}\label{eqn:ad}
 For nonlinear programming, the evaluation of the functions $f$ and $g$ and their derivatives is crucial for the performance of the optimization solvers.
