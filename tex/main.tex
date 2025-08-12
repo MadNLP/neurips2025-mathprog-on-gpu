@@ -74,7 +74,7 @@
 \newacronym{kkt}{KKT}{Karush-Kuhn-Tucker}
 \newacronym{sqp}{SQP}{sequential quadratic programming}
 \newacronym{ipm}{IPM}{interior-point method}
-\newacronym{cpu}{CPU}{central processing units} 
+\newacronym{cpu}{CPU}{central processing units}
 \newacronym{gpu}{GPU}{graphics processing units}
 \newacronym{mpc}{MPC}{model predictive control}
 \newacronym{ac}{AC}{alternating current}
@@ -91,7 +91,7 @@
 \newacronym{bess}{BESS}{battery energy storage system}
 \newacronym{cqa}{CQA}{critical quality attribute}
 \newacronym{lnp}{LNP}{lipid nanoparticle}
-\newacronym{iso}{ISO}{independent system operator} 
+\newacronym{iso}{ISO}{independent system operator}
 \newacronym{simd}{SIMD}{single instruction, multiple data}
 \newacronym{mimd}{MIMD}{multiple instruction, multiple data}
 \newacronym{orcd}{ORCD}{Office of Research Computing and Data}
@@ -110,7 +110,7 @@
 \newacronym{bcl}{BCL}{bound constrained Lagrangian}
 
 
-% Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote. 
+% Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote.
 \title{On the GPU Implementation of Large-Scale Second-Order Optimization Solvers}
 
 
@@ -187,28 +187,28 @@ In recent years, GPU-accelerated second-order (e.g., interior-point) optimizatio
 
 This paper focuses on the continuous optimization problems of the following form:
 \begin{align}\label{eqn:opt}
-  \min_{x } \; & f(x) \quad \text{s.t.} \; g(x) \geq 0,
+  \min_{x } \; & f(x) \quad \text{s.t.} \; g(x) = 0 \; , \; x \geq 0 \; ,
 \end{align}
 where $x \in \mathbb{R}^n$ is the optimization decision variable, $f: \mathbb{R}^n \to \mathbb{R}$ is the objective function, and $g: \mathbb{R}^n \to \mathbb{R}^m$ is the constraint function.
 For the remainder of the paper, we assume that $f$ and $g$ are sufficiently smooth.
-We discuss both the situation where $f$ and $g$ are affine, which corresponds to \gls{lp}, and the situation where $f$ and $g$ are nonlinear, which corresponds to \gls{nlp}, and for the latter, we only focus on local solution methods.
-Further, we particularly focus on the implementations targetting large and \emph{sparse} problems, where the constraint Jacobian and Lagrangian Hessian are large (e.g., the number of row and columns exceeds one million) and sparse matrices (e.g., tens of non-zero entries per row).
+We discuss both the situation where $f$ and $g$ are affine, which corresponds to \gls{lp}, and the situation where $f$ and $g$ are nonlinear (and potentially nonconvex), which corresponds to \gls{nlp}. In the nonconvex setting, we only focus on local solution methods.
+Further, we particularly focus on the implementations targeting large and \emph{sparse} problems, where the constraint Jacobian and Lagrangian Hessian are large (e.g., the number of row and columns exceeds one million) and sparse matrices (e.g., tens of non-zero entries per row).
 These problems arise in various applications, including power systems \cite{}, chemical process optimization \cite{}, autonomous control systems \cite{}, and many others \cite{}; these applications often require solving large-scale optimization problems in real-time up to high accuracy to ensure constraint satisfaction and optimal performance.
 Existing solvers include Ipopt, Knitro, HiGHS, Gurobi, etc, and they are all designed to exploit the inherent sparsity to cope with the large problem sizes.
 
 While general-purpose GPU computing has made significant progress in recent years, the GPU computing techniques were not actively adopted by the state-of-the-art optimization solvers.
-GPU computing is designed to be most powerful when performing highly repeatitive operations on large data sets, due to the SIMD (single instruction, multiple data) architecture of GPUs.
+GPU computing is designed to be most powerful when performing highly repetitive operations on large data sets, due to the SIMD (single instruction, multiple data) architecture of GPUs.
 Matrix multiplications in particular, is performed on a separate hardware unit, called Tensor cores in NVIDIA's architecture, which is further optimized for performing multiply-accumulate operations on large matrices.
 When they are properly applied, GPUs can provide significant accelerations over the serial CPU implementations due to their massive parallelization capabilities.
-For example, for large AI model training, the GPU architectures provide the main computational power for performing dense linear algebra operations at the low-level, thus enabling the training of AI models with masive number of parameters.
-However, many of the problem formulations that have been targetted by the classical mathematical programming solvers are extremely sparse in nature, and they cannot adequately exploit the parallelization at the dense matrix operation level.
-Furthermore, even if some part of the algorithm can benefit from GPU acceleration, the accleration cannot be applied in an ad-hoc fashion because if the other part of the algorithm runs on the CPU, a lot of host-device data transfer is required, which can be a bottleneck for the overall performance.
+For example, for large AI model training, the GPU architectures provide the main computational power for performing dense linear algebra operations at the low-level, thus enabling the training of AI models with massive number of parameters.
+However, many of the problem formulations that have been targeted by the classical mathematical programming solvers are extremely sparse in nature, and they cannot adequately exploit the parallelization at the dense matrix operation level.
+Furthermore, even if some part of the algorithm can benefit from GPU acceleration, the acceleration cannot be applied in an ad-hoc fashion because if the other part of the algorithm runs on the CPU, a lot of host-device data transfer is required, which can be a bottleneck for the overall performance.
 As such, GPU utilization within the state-of-the-art mathematical programming solvers is (i) inherently more challenging, (ii) may not be even suitable for certain class of problems, and (iii) often requires careful redesign the algorithms to allow effective utilization of parallel computing resources.
 
 First-order algorithms have emerged as a suitable algorithm class for GPU implementation, as they rely typically on sparse matrix-vector multiplication (SpMV) and vector operations, which can be efficiently parallelized on GPUs.
 Notably, several successful implementations have been reported in the recent years, such as cuPDLP \cite{}, cuPDLP+ \cite{}, and cuOSQP \cite{}.
-Although these approaches are highly promising when targetting low or mid-precision solutions, it is difficult to achieve high-precision solutions with these methods, due to the inherent linear convergence order of the first-order methods.
-Furhter, the performance advantage can be observed only when the problem size is large enough, which further limits the applicability of these methods.
+Although these approaches are highly promising when targeting low or mid-precision solutions, it is difficult to achieve high-precision solutions with these methods, due to the inherent linear convergence of the first-order methods.
+Further, the performance advantage can be observed only when the problem size is large enough, which further limits the applicability of these methods.
 
 The limitations of the first-order algorithms motivates the development of second-order solvers on GPUs.
 As the second-order algorithms are predominantly used methods in the state-of-the-art solvers, when implemented appropriately, they can achieve similarly high precision solutions and be effective for a wide range of problem sizes.
@@ -217,8 +217,8 @@ In particular, at each iteration of the second-order methods it is required to s
 As the interior-point (barrier) method is typically employed to handle inequalities in a scalable fashion, these KKT systems are extremely ill-conditioned, as they approach to the solution, which hampers iterative linear algebra approaches even with preconditioning.
 Furthermore, in nonconvex settings, the KKT systems do not exhibit any nice properties, such as positive quasi-definiteness, which makes ensuring the numerical stability of the linear solvers even more challenging.
 
-Recently, NVIDIA has released cuDSS, a direct linear solver library that is designed to handle large sparse linear systems on GPUs, which was predecated by older cuSOLVERRF or the undocumented sparse Cholesky routines shipped with CUDA.
-This libarary provides mature implementation of direct solvers based on Cholesky, LDL$^\top$, and LU sparse factorization, which are the most commonly used factorization methods in the state-of-the-art mathematical programming solvers, with unprecedented speed and numerical stability.
+Recently, NVIDIA has released cuDSS, a direct linear solver library designed to handle large sparse linear systems on GPUs, which was predated by cuSOLVERRF or the undocumented sparse Cholesky routines shipped with CUDA.
+cuDSS provides mature implementation of direct solvers based on Cholesky, LDL$^\top$, and LU sparse factorization, which are the most commonly used sparse factorization methods in the state-of-the-art mathematical programming solvers, with unprecedented speed and numerical stability.
 Though they do not provide the entire toolset required to exactly port the existing IPM solvers to GPUs, they currently provide the adequate toolset to implement a certain modified, parallel-friendly version of the optimization algorithms.
 Several open-source solvers are already incorporating cuDSS, such as MadNLP \cite{}, a GPU-accelerated nonlinear programming solver.
 When properly configured with GPU-accelerated automatic differentiation system, this solver is known to achieve remarkable performance on large-scale nonlinear programming problems, achieving more than 10x speed-up over the best existing CPU alternatives \cite{}.
@@ -229,9 +229,9 @@ This paper aims to provide a comprehensive overview of the current state of the 
 
 Below we summarize the key focus of the paper and rationale:
 \begin{itemize}[leftmargin=*,itemsep=0pt,parsep=0pt,partopsep=0pt]
-\item We base our discussion on the interior-point method as the measure to handle inequality constraints. An alternative approach, the active-set based methods (or simplex methods for \glspl*{lp}), are not considered in this paper, as they are not typically used in large-scale optimization problems. 
-\item We focus on the solution of the KKT systems within the interior-point method, which is the most non-trivial part of the GPU implementation. Although second-order based mathematical programming solvers rely on various low-level kernels and sophisticated strategies to ensure robust performance, most of the computations needed can be implemented with rather simple \texttt{map} or \texttt{reduce} operations, which can be straightforwardly executed on GPUs. 
-\item We foscus on NVIDIA GPUs and their software stack, as they are the most widely used GPUs in the high-performance computing community. While we expect that the same capabilities in principle can be implemented on other GPU architectures, such as AMD or Intel GPUs, or in a cross-platform fashion, such as OpenCL or KernelAbstractions.jl, NVIDIA currently provides the most mature sparse direct sovler library, cuDSS.
+\item We base our discussion on the interior-point method as the measure to handle inequality constraints. An alternative approach, the active-set based methods (or simplex methods for \glspl*{lp}), are not considered in this paper, as they are not typically used in large-scale optimization problems.
+\item We focus on the solution of the KKT systems within the interior-point method, which is the most non-trivial part of the GPU implementation. Although second-order based mathematical programming solvers rely on various low-level kernels and sophisticated strategies to ensure robust performance, most of the computations needed can be implemented with rather simple \texttt{map} or \texttt{reduce} operations, which can be straightforwardly executed on GPUs.
+\item We focus on NVIDIA GPUs and their software stack, as they are the most widely used GPUs in the high-performance computing community. While we expect that the same capabilities in principle can be implemented on other GPU architectures, such as AMD or Intel GPUs, or in a cross-platform fashion, such as OpenCL or KernelAbstractions.jl, NVIDIA currently provides the most mature sparse direct sovler library, cuDSS.
 \end{itemize}
 In the remainder of the paper, we first summarize the current state-of-the-art in GPU-accelerated direct linear solvers, focusing on their use within mathematical programming solvers.
 Then, we discuss different aspects of various KKT system formulations that can be employed within interior-point methods and examine their suitability for GPU implementation.
@@ -240,7 +240,7 @@ Finally, we present numerical results highlighting scalability---often achieving
 
 \section{Direct Linear Solvers for Optimization Sovlers}\label{eqn:linear}
 %% SS: Alexis, could you write  this section?
-The most commonly used direct linear solvers in mathematical programming solvers are based on sparse matrix factorization methods are summarized below.
+The most commonly used direct linear solvers in mathematical programming solvers are based on sparse matrix factorization methods.
 This section summarizes the current state-of-the-art in the GPU implementations of direct solvers, particularly focusing on the current capabilities of cuDSS, NVIDIA's direct solver library.
 % Although GPU solvers has made significant progress in the recent years, their numerical stability, especially for handling indefinite linear systems is still rather limited.
 
@@ -248,9 +248,9 @@ This section summarizes the current state-of-the-art in the GPU implementations 
 
 \subsection{Cholesky factorization}
 Cholesky factorization is a matrix factorization method that decomposes a positive definite matrix $A$ into the product of a lower triangular matrix $L$ and its transpose, i.e., $A = LL^\top$. For sparse matrices, a proper ordering of the matrix is required to minimize fill-in and to ensure the parallelizability at the elimination tree level. By also incorporating the permutation, the factorization can be written as $A = P L L^\top P^\top$, where $P$ is a permutation matrix.
-Within direct solvers, Cholesky factorization is typically utilized to solve linear systems of the form $Ax = b$, where the solution is obtained by first solving the lower triangular system $Ly = Pb$ and then the upper triangular system $L^\top x = y$.
+Within direct solvers, Cholesky factorization is utilized to solve linear systems of the form $Ax = b$, where the solution is obtained by first solving the lower triangular system $Ly = Pb$ and then the upper triangular system $L^\top x = y$.
 
-Although algorithms to compute $P$ is serial in nature (e.g., minimum degree ordering or nested dissection) and unsuitable for the implementaion on GPUs (e.g., cuDSS performs this operation on CPUs), the ordering can be computed only once and can be reused for multiple factorization calls, thus the overhead can be amortized over multiple calls.
+Although algorithms to compute $P$ are serial in nature (e.g., minimum degree ordering or nested dissection) and unsuitable for the implementation on GPUs (e.g., cuDSS performs this operation on CPUs), the ordering can be computed only once and can be reused for multiple factorization calls, thus the overhead can be amortized over multiple calls.
 
 A nice property of Cholesky factorization is that it can be computed in a numerically stable manner, provided that the matrix $A$ is positive definite.
 Since performing numerical pivoting on GPUs is known to be challenging and inefficient, it is always desired to transform a matrix in a Cholesky factorizable form to apply direct solution methods on GPUs.
@@ -263,10 +263,10 @@ Cholesky factorization exists only if the original matrix $A$ is positive defini
 \subsection{LDL$^\top$ factorization}
 If Cholesky factorization is not an option, one may resort to LDL$^\top$ factorization, often referred to as modified or signed Cholesky factorization.
 This method decomposes a matrix $A$ into the product of a lower triangular matrix $L$, a diagonal matrix $D$, and the transpose of $L$, i.e., $A = L D L^\top$ (or $A = P L D L^\top P^\top$ with a permutation matrix $P$).
-The algorithm is almost the same is the Cholesky factorization, except that the diagonal matrix $D$ can contain both positive and negative entries, which allows the factorization to be applied to indefinite matrices.
+The algorithm is almost the same as the Cholesky factorization, except that the diagonal matrix $D$ can contain both positive and negative entries, which allows the factorization to be applied to indefinite matrices.
 LDL$^\top$ factorization exists for more broad class of matrices, including many indefinite matrices.
 However, they are guaranteed to be stable with any given ordering (thus not requiring numerical pivoting) only when the matrix is symmetric quasi-definite.
-Many of the saddle point systems encountered in mathematical programming solvers are positive quasi-definite or close to be positive quasi-definite (can be come quasi-definite with infinitsesimal regularization), and thus, LDL$^\top$ factorization is often used to solve the KKT systems in the interior-point method.
+Many of the saddle point systems encountered in mathematical programming solvers are positive quasi-definite or close to be positive quasi-definite (can be come quasi-definite with infinitesimal regularization), and thus, LDL$^\top$ factorization is often used to solve the KKT systems in the interior-point method.
 
 However, for general indefinite matrices, LDL$^\top$ factorization procedure is not guaranteed to be numerically stable and they can encounter zero pivot.
 Thus, various mitigation strategies are employed in the state-of-the-art direct linear solvers.
@@ -282,7 +282,7 @@ Below we summarize the existing strategies and their potential use within GPU so
 
 
 
-% In practice, the KKT systems 
+% In practice, the KKT systems
 
 % some basic description of LDLT factorization algorihthm, highlighting their usage within convex solvers.
 
@@ -296,7 +296,7 @@ Below we summarize the existing strategies and their potential use within GPU so
 
 
 \section{Interior-Point (Barrier) Methods and KKT Systems}\label{eqn:ipm}
-\gls*{ipm} is a class of optimization algorithms that are designed to solve inequality-constrained optimization problems, such as \cref{eqn:opt}, by transforming the problem into a sequence of unconstrained optimization problems using a barrier function. In most of practical implementations, slack variables are introduced as follows:
+The \gls*{ipm} is a class of optimization algorithms that are designed to solve inequality-constrained optimization problems, such as \cref{eqn:opt}, by transforming the problem into a sequence of unconstrained optimization problems using a barrier function. In most of practical implementations, slack variables are introduced as follows:
 \begin{align}\label{eqn:barrier}
   \min_{x,s } \; & f(x) - \mu \sum_{i=1}^m \log(s_i) \quad \text{s.t.} \; g(x) + s = 0.
 \end{align}
@@ -334,7 +334,7 @@ The system in \eqref{eqn:kkt_system} is indefinite in general, but for strongly 
 Since the block structure in \cref{eqn:kkt_system} admits several possibilities for further reduction, the KKT system can be reformulated in several different ways:
 
 \paragraph{Eliminating slack variables}
-$S^{-1}\Lambda + \delta_w I$ is always invertiable due to the nature of primal-dual interior-point method, as the slack $s$ and the dual variable $\lambda$ are always forced to be positive. The resulting system can be written as follows:
+$S^{-1}\Lambda + \delta_w I$ is always invertible due to the nature of primal-dual interior-point method, as the slack $s$ and the dual variable $\lambda$ are always forced to be positive. The resulting system can be written as follows:
 \begin{align}\label{eqn:kkt_2}
   \begin{bmatrix}
     \nabla^2 \mathcal{L}(x,\lambda) + \delta_w I&  \nabla g(x)^\top \\
@@ -347,7 +347,7 @@ $S^{-1}\Lambda + \delta_w I$ is always invertiable due to the nature of primal-d
   -\begin{bmatrix}
     *\\
     *\\
-  \end{bmatrix},  
+  \end{bmatrix},
 \end{align}
 Since $S^{-1}\Lambda + \delta_w I$ is diagonal, the elimination procedure does not incur significant computational overhead and the number of non-zero entries in the resulting system is not increased. However, since $S^{-1}\Lambda$ can be arbitrarily ill-conditioned, the numerical stability of the resulting system can be compromised. This system is positive quasi-definite if the original problem is strongly convex (thus LDL$^\top$ factorizable), but for general linear programs, the $(1,1)$-block is not guaranteed to be positive definite. For general \glspl*{nlp}, even the $(1,1)$-block can have negative eigenvalues, and thus, LBL$^\top$ method with partial pivoting needs to be employed to solve the in a numerically stable fashion.
 
@@ -360,7 +360,7 @@ This is less common, but the primal 1x1 block $\nabla^2 \mathcal{L}(x,\lambda) +
   \end{bmatrix} =
   -\begin{bmatrix}
     *\\
-  \end{bmatrix},  
+  \end{bmatrix},
 \end{align}
 Unless $\nabla^2 \mathcal{L}(x,\lambda) + \delta_w I$ is diagonal, this system can be arbitrarily dense, and thus, this elimination needs to be used with caution. Assuming that the primal Hessian is positive definite, this system is always negative definite, thus is Cholesky factorizable.
 
@@ -376,7 +376,7 @@ The 2x2 block containing $S^{-1}\Lambda + \delta_w$ and $-\delta_c I$ is always 
   \end{bmatrix}.
 \end{align}
 In the context of linear programming, this system is often called normal equations.
-Compared to \eqref{eqn:kkt_2}, the system size is further reduced. However, since the matrix $ $ can be arbitrarily dense, the resulting system can be arbitrarily dense as well, which can significantly increase the computational cost of the linear solver. Furhtermore, this elimination strategy suffers from the same potential ill-conditioning issue as in \eqref{eqn:kkt_2}. Upon standard inertial correction, this system is always positive definite. Thus, the system can always be Cholesky factorized with static pivoting, even for nonlinear programs. 
+Compared to \eqref{eqn:kkt_2}, the system size is further reduced. However, since the matrix $ $ can be arbitrarily dense, the resulting system can be arbitrarily dense as well, which can significantly increase the computational cost of the linear solver. Furthermore, this elimination strategy suffers from the same potential ill-conditioning issue as in \eqref{eqn:kkt_2}. Upon standard inertial correction, this system is always positive definite. Thus, the system can always be Cholesky factorized with static pivoting, even for nonlinear programs.
 
 
 For GPU solvers for \glspl*{nlp}, \cref{eqn:kkt_1} is the most suitable formulation and the other formulations are bound to exhibit numerical instabilities. Thus, the currently existing solver MadNLP.jl is based on \cref{eqn:kkt_1} formulation. To handle equality constraints more efficiently, the equality constraints are relaxed into doubly bounded inequalities with a small gap, called LiftedKKT system strategy.
@@ -397,19 +397,19 @@ It is of interest to develop an algebraic modeling system that can generate the 
 This is not only because they are major contributors to the overall computational cost, but also because if the derivatives have to be evaluated on CPUs, the host-device data transfer can become a bottleneck for the overall performance.
 
 The parallelization of derivative evaluation requires exploiting the internal structure of the functions $f$ and $g$, as the function oracles by themselves do not permit performing parallelization.
-In particular, functions $f$ and $g$ observed within many practical instances of the large-scale sparse mathematical programs exhibit highly repetitive structure that can be exploited by GPUs. 
+In particular, functions $f$ and $g$ observed within many practical instances of the large-scale sparse mathematical programs exhibit highly repetitive structure that can be exploited by GPUs.
 For example, like the following example:
 \begin{align*}
   f(x) &= \sum_{p\in P} f^o(x; p), \quad g(x) = \left\{g^o(x; p)\right\}_{p\in P},
 \end{align*}
 $f$ may be a sum of many terms, each of which is a simple expressions, such as affine, polynomial, or simple nonlinear functions, and $g$ may be a collection of many constraints generated from a common template, such as power flow equations applied to many branches of a power network or material and energy balance equations applied to many streams and units in a chemical process. In such cases, the evaluation of the functions $f$ and $g$ and their derivatives is embarassingly parallelizable, and they are suitable for executing on GPUs.
 
-Moreover, one can even develop an algebraic modeling system that generates the code for evaluating and differentiating the functions $f$ and $g$ in a highly parallelizable manner, as long as the repeative structure is informed to the modeling system. In order to implement such a capabilities, it is necessary to design a modeling syntax that allows the user to specify the repetitive structures within $f$ and $g$. The classical modeling systems, such as AMPL, GAMS, CasADi, and JuMP, do not provide such capabilities, but more recently developed systems, such as ExaModels.jl and Gravity, provide such capabilities. For example, ExaModels.jl requires the user to specify the objective and constraint functions always in a form of iterator, such as
+Moreover, one can even develop an algebraic modeling system that generates the code for evaluating and differentiating the functions $f$ and $g$ in a highly parallelizable manner, as long as the repetive structure is informed to the modeling system. In order to implement such a capabilities, it is necessary to design a modeling syntax that allows the user to specify the repetitive structures within $f$ and $g$. The classical modeling systems, such as AMPL, GAMS, CasADi, and JuMP, do not provide such capabilities, but more recently developed systems, such as ExaModels.jl and Gravity, provide such capabilities. For example, ExaModels.jl requires the user to specify the objective and constraint functions always in a form of iterator, such as
 \begin{lstlisting}
   objective(c, 100 * (x[i-1]^2 - x[i])^2 + (x[i-1] - 1)^2 for i = 2:N)
 \end{lstlisting}
 which corresponds to the case of $f^o(x; p) = 100(x[p-1]^2 - x[p])^2 + (x[p-1]-1)^2$ and $p=\{2,\cdots,N\}$.
-This syntax allows the modeling system to store the model function information in a structured fashion and generate the code for evaluating and differentiating (via reverse mode \gls*{ad}) the functions $f$ and $g$ in a highly parallelizable manner. 
+This syntax allows the modeling system to store the model function information in a structured fashion and generate the code for evaluating and differentiating (via reverse mode \gls*{ad}) the functions $f$ and $g$ in a highly parallelizable manner.
 
 
 
@@ -443,7 +443,7 @@ The numerical results can be reproduced with the source code and Manifest file a
                           & HiGHS & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
                           & Gurobi & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
     \hline
-  \end{tabular}  
+  \end{tabular}
 \end{table}
 
 \subsection{Nonlinear Programming}
@@ -467,7 +467,7 @@ Depending on the number of nonzeros in the augmented KKT system, we categorize t
     \multirow{2}{*}{$10^{-8}$} & MadNLP (gpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
                           & Ipopt (cpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
     \hline
-  \end{tabular}  
+  \end{tabular}
 \end{table}
 
 
@@ -489,7 +489,7 @@ The results are summarized in Table \ref{tab:cops}, and the raw data are availab
     \multirow{2}{*}{$10^{-8}$} & MadNLP (gpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
                           & Ipopt (cpu) & 66 & 0.2 & 66 & 0.2 & 66 & 0.2& 66 & 0.2 \\
     \hline
-  \end{tabular}  
+  \end{tabular}
 \end{table}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -502,7 +502,7 @@ We have presented a current landscape of GPU-accelerated second-order optimizati
 %% Here, we only provide pointers to our arXiv posting. It would be ideal to have NCL paper on arXiv so that we can cite it here.
 Pointer to NCL paper.
 Pointer to HybridKKT.
-\item {Zero-pivot Tolerant Factorization Routines}: 
+\item {Zero-pivot Tolerant Factorization Routines}:
 \item {Batch mathematical programming solvers}:
 \item {Utilizing tensor cores and dense linear algebra routines}:
 \item {Hardware portability and cross-platform implementations}:
@@ -521,13 +521,13 @@ Technical appendices with additional results, figures, graphs and proofs may be 
 
 %%% BEGIN INSTRUCTIONS %%%
 The checklist is designed to encourage best practices for responsible machine learning research, addressing issues of reproducibility, transparency, research ethics, and societal impact. Do not remove the checklist: {\bf The papers not including the checklist will be desk rejected.} The checklist should follow the references and follow the (optional) supplemental material.  The checklist does NOT count towards the page
-limit. 
+limit.
 
 Please read the checklist guidelines carefully for information on how to answer these questions. For each question in the checklist:
 \begin{itemize}
     \item You should answer \answerYes{}, \answerNo{}, or \answerNA{}.
     \item \answerNA{} means either that the question is Not Applicable for that particular paper or the relevant information is Not Available.
-    \item Please provide a short (1–2 sentence) justification right after your answer (even for NA). 
+    \item Please provide a short (1–2 sentence) justification right after your answer (even for NA).
    % \item {\bf The papers not including the checklist will be desk rejected.}
 \end{itemize}
 
@@ -540,8 +540,8 @@ IMPORTANT, please:
     \item {\bf Delete this instruction block, but keep the section heading ``NeurIPS Paper Checklist"},
     \item  {\bf Keep the checklist subsection headings, questions/answers and guidelines below.}
     \item {\bf Do not modify the questions and only use the provided macros for your answers}.
-\end{itemize} 
- 
+\end{itemize}
+
 
 %%% END INSTRUCTIONS %%%
 
@@ -555,9 +555,9 @@ IMPORTANT, please:
     \item[] Guidelines:
     \begin{itemize}
         \item The answer NA means that the abstract and introduction do not include the claims made in the paper.
-        \item The abstract and/or introduction should clearly state the claims made, including the contributions made in the paper and important assumptions and limitations. A No or NA answer to this question will not be perceived well by the reviewers. 
-        \item The claims made should match theoretical and experimental results, and reflect how much the results can be expected to generalize to other settings. 
-        \item It is fine to include aspirational goals as motivation as long as it is clear that these goals are not attained by the paper. 
+        \item The abstract and/or introduction should clearly state the claims made, including the contributions made in the paper and important assumptions and limitations. A No or NA answer to this question will not be perceived well by the reviewers.
+        \item The claims made should match theoretical and experimental results, and reflect how much the results can be expected to generalize to other settings.
+        \item It is fine to include aspirational goals as motivation as long as it is clear that these goals are not attained by the paper.
     \end{itemize}
 
 \item {\bf Limitations}
@@ -566,7 +566,7 @@ IMPORTANT, please:
     \item[] Justification: \justificationTODO{}
     \item[] Guidelines:
     \begin{itemize}
-        \item The answer NA means that the paper has no limitation while the answer No means that the paper has limitations, but those are not discussed in the paper. 
+        \item The answer NA means that the paper has no limitation while the answer No means that the paper has limitations, but those are not discussed in the paper.
         \item The authors are encouraged to create a separate "Limitations" section in their paper.
         \item The paper should point out any strong assumptions and how robust the results are to violations of these assumptions (e.g., independence assumptions, noiseless settings, model well-specification, asymptotic approximations only holding locally). The authors should reflect on how these assumptions might be violated in practice and what the implications would be.
         \item The authors should reflect on the scope of the claims made, e.g., if the approach was only tested on a few datasets or with a few runs. In general, empirical results often depend on implicit assumptions, which should be articulated.
@@ -582,12 +582,12 @@ IMPORTANT, please:
     \item[] Justification: \justificationTODO{}
     \item[] Guidelines:
     \begin{itemize}
-        \item The answer NA means that the paper does not include theoretical results. 
+        \item The answer NA means that the paper does not include theoretical results.
         \item All the theorems, formulas, and proofs in the paper should be numbered and cross-referenced.
         \item All assumptions should be clearly stated or referenced in the statement of any theorems.
-        \item The proofs can either appear in the main paper or the supplemental material, but if they appear in the supplemental material, the authors are encouraged to provide a short proof sketch to provide intuition. 
+        \item The proofs can either appear in the main paper or the supplemental material, but if they appear in the supplemental material, the authors are encouraged to provide a short proof sketch to provide intuition.
         \item Inversely, any informal proof provided in the core of the paper should be complemented by formal proofs provided in appendix or supplemental material.
-        \item Theorems and Lemmas that the proof relies upon should be properly referenced. 
+        \item Theorems and Lemmas that the proof relies upon should be properly referenced.
     \end{itemize}
 
     \item {\bf Experimental result reproducibility}
@@ -598,7 +598,7 @@ IMPORTANT, please:
     \begin{itemize}
         \item The answer NA means that the paper does not include experiments.
         \item If the paper includes experiments, a No answer to this question will not be perceived well by the reviewers: Making the paper reproducible is important, regardless of whether the code and data are provided or not.
-        \item If the contribution is a dataset and/or model, the authors should describe the steps taken to make their results reproducible or verifiable. 
+        \item If the contribution is a dataset and/or model, the authors should describe the steps taken to make their results reproducible or verifiable.
         \item Depending on the contribution, reproducibility can be accomplished in various ways. For example, if the contribution is a novel architecture, describing the architecture fully might suffice, or if the contribution is a specific model and empirical evaluation, it may be necessary to either make it possible for others to replicate the model with the same dataset, or provide access to the model. In general. releasing code and data is often one good way to accomplish this, but reproducibility can also be provided via detailed instructions for how to replicate the results, access to a hosted model (e.g., in the case of a large language model), releasing of a model checkpoint, or other means that are appropriate to the research performed.
         \item While NeurIPS does not require releasing code, the conference does require all submissions to provide some reasonable avenue for reproducibility, which may depend on the nature of the contribution. For example
         \begin{enumerate}
@@ -663,10 +663,10 @@ IMPORTANT, please:
     \begin{itemize}
         \item The answer NA means that the paper does not include experiments.
         \item The paper should indicate the type of compute workers CPU or GPU, internal cluster, or cloud provider, including relevant memory and storage.
-        \item The paper should provide the amount of compute required for each of the individual experimental runs as well as estimate the total compute. 
-        \item The paper should disclose whether the full research project required more compute than the experiments reported in the paper (e.g., preliminary or failed experiments that didn't make it into the paper). 
+        \item The paper should provide the amount of compute required for each of the individual experimental runs as well as estimate the total compute.
+        \item The paper should disclose whether the full research project required more compute than the experiments reported in the paper (e.g., preliminary or failed experiments that didn't make it into the paper).
     \end{itemize}
-    
+
 \item {\bf Code of ethics}
     \item[] Question: Does the research conducted in the paper conform, in every respect, with the NeurIPS Code of Ethics \url{https://neurips.cc/public/EthicsGuidelines}?
     \item[] Answer: \answerTODO{} % Replace by \answerYes{}, \answerNo{}, or \answerNA{}.
@@ -692,7 +692,7 @@ IMPORTANT, please:
         \item The authors should consider possible harms that could arise when the technology is being used as intended and functioning correctly, harms that could arise when the technology is being used as intended but gives incorrect results, and harms following from (intentional or unintentional) misuse of the technology.
         \item If there are negative societal impacts, the authors could also discuss possible mitigation strategies (e.g., gated release of models, providing defenses in addition to attacks, mechanisms for monitoring misuse, mechanisms to monitor how a system learns from feedback over time, improving the efficiency and accessibility of ML).
     \end{itemize}
-    
+
 \item {\bf Safeguards}
     \item[] Question: Does the paper describe safeguards that have been put in place for responsible release of data or models that have a high risk for misuse (e.g., pretrained language models, image generators, or scraped datasets)?
     \item[] Answer: \answerTODO{} % Replace by \answerYes{}, \answerNo{}, or \answerNA{}.
@@ -700,7 +700,7 @@ IMPORTANT, please:
     \item[] Guidelines:
     \begin{itemize}
         \item The answer NA means that the paper poses no such risks.
-        \item Released models that have a high risk for misuse or dual-use should be released with necessary safeguards to allow for controlled use of the model, for example by requiring that users adhere to usage guidelines or restrictions to access the model or implementing safety filters. 
+        \item Released models that have a high risk for misuse or dual-use should be released with necessary safeguards to allow for controlled use of the model, for example by requiring that users adhere to usage guidelines or restrictions to access the model or implementing safety filters.
         \item Datasets that have been scraped from the Internet could pose safety risks. The authors should describe how they avoided releasing unsafe images.
         \item We recognize that providing effective safeguards is challenging, and many papers do not require this, but we encourage authors to take this into account and make a best faith effort.
     \end{itemize}
@@ -728,20 +728,20 @@ IMPORTANT, please:
     \item[] Guidelines:
     \begin{itemize}
         \item The answer NA means that the paper does not release new assets.
-        \item Researchers should communicate the details of the dataset/code/model as part of their submissions via structured templates. This includes details about training, license, limitations, etc. 
+        \item Researchers should communicate the details of the dataset/code/model as part of their submissions via structured templates. This includes details about training, license, limitations, etc.
         \item The paper should discuss whether and how consent was obtained from people whose asset is used.
         \item At submission time, remember to anonymize your assets (if applicable). You can either create an anonymized URL or include an anonymized zip file.
     \end{itemize}
 
 \item {\bf Crowdsourcing and research with human subjects}
-    \item[] Question: For crowdsourcing experiments and research with human subjects, does the paper include the full text of instructions given to participants and screenshots, if applicable, as well as details about compensation (if any)? 
+    \item[] Question: For crowdsourcing experiments and research with human subjects, does the paper include the full text of instructions given to participants and screenshots, if applicable, as well as details about compensation (if any)?
     \item[] Answer: \answerTODO{} % Replace by \answerYes{}, \answerNo{}, or \answerNA{}.
     \item[] Justification: \justificationTODO{}
     \item[] Guidelines:
     \begin{itemize}
         \item The answer NA means that the paper does not involve crowdsourcing nor research with human subjects.
-        \item Including this information in the supplemental material is fine, but if the main contribution of the paper involves human subjects, then as much detail as possible should be included in the main paper. 
-        \item According to the NeurIPS Code of Ethics, workers involved in data collection, curation, or other labor should be paid at least the minimum wage in the country of the data collector. 
+        \item Including this information in the supplemental material is fine, but if the main contribution of the paper involves human subjects, then as much detail as possible should be included in the main paper.
+        \item According to the NeurIPS Code of Ethics, workers involved in data collection, curation, or other labor should be paid at least the minimum wage in the country of the data collector.
     \end{itemize}
 
 \item {\bf Institutional review board (IRB) approvals or equivalent for research with human subjects}
@@ -751,14 +751,14 @@ IMPORTANT, please:
     \item[] Guidelines:
     \begin{itemize}
         \item The answer NA means that the paper does not involve crowdsourcing nor research with human subjects.
-        \item Depending on the country in which research is conducted, IRB approval (or equivalent) may be required for any human subjects research. If you obtained IRB approval, you should clearly state this in the paper. 
-        \item We recognize that the procedures for this may vary significantly between institutions and locations, and we expect authors to adhere to the NeurIPS Code of Ethics and the guidelines for their institution. 
+        \item Depending on the country in which research is conducted, IRB approval (or equivalent) may be required for any human subjects research. If you obtained IRB approval, you should clearly state this in the paper.
+        \item We recognize that the procedures for this may vary significantly between institutions and locations, and we expect authors to adhere to the NeurIPS Code of Ethics and the guidelines for their institution.
         \item For initial submissions, do not include any information that would break anonymity (if applicable), such as the institution conducting the review.
     \end{itemize}
 
 \item {\bf Declaration of LLM usage}
     \item[] Question: Does the paper describe the usage of LLMs if it is an important, original, or non-standard component of the core methods in this research? Note that if the LLM is used only for writing, editing, or formatting purposes and does not impact the core methodology, scientific rigorousness, or originality of the research, declaration is not required.
-    %this research? 
+    %this research?
     \item[] Answer: \answerTODO{} % Replace by \answerYes{}, \answerNo{}, or \answerNA{}.
     \item[] Justification: \justificationTODO{}
     \item[] Guidelines:
