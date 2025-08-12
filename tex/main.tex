@@ -131,7 +131,7 @@
   Mathematics and Computer Science Division\\
   Argonne National Laboratory\\
   Lemont, IL 60439\\
-  \texttt{montoison@anl.gov}\\
+  \texttt{amontoison@anl.gov}\\
   \And
   Fran\c{c}ois Pacaud\\
   Centre Automatique et Systèmes\\
@@ -198,7 +198,6 @@ While general-purpose GPU computing has made significant strides in recent years
 GPUs are especially powerful for highly repetitive computation on large data sets, such as dense matrix multiplication (GEMM) routines utilized within large AI model training and inference, but many mathematical programming problems are highly sparse and cannot effectively exploit the parallelism at the dense matrix operation levels.
 Moreover, partial GPU-acceleration is hard to achieve significant speed-ups due to the rather expensive data transfer overhead between host and device memories.
 Consequently, leveraging GPUs within mathematical programming solvers is (i) inherently more challenging than applying parallelization to algorithms relying on dense linear algebra operations and (ii) often requires a careful redesign of the overall algorithms.
-
 
 First-order algorithms have emerged as a suitable algorithm class for GPU implementation.
 As these algorithms rely typically on sparse matrix-vector multiplication (SpMV) and simple vector operations, implementing GPU acceleration is less likely obstructed by the unavailability of low-level kernels.
