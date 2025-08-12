@@ -296,7 +296,110 @@ Below we summarize the existing strategies and their potential use within GPU so
 
 
 \section{Interior-Point (Barrier) Methods and KKT Systems}\label{eqn:ipm}
-The \gls*{ipm} is a class of optimization algorithms that are designed to solve inequality-constrained optimization problems, such as \cref{eqn:opt}, by transforming the problem into a sequence of unconstrained optimization problems using a barrier function. In most of practical implementations, slack variables are introduced as follows:
+The \gls*{ipm} is a class of optimization algorithms that are designed to solve inequality-constrained optimization problems, such as \cref{eqn:opt}, by transforming the problem into a sequence of unconstrained optimization problems using a barrier function. Then at iteration $k$, the descent direction $d_k$ is computed using
+Newton method, resulting a sequence of \gls{kkt} linear systems
+\begin{equation}
+  K_k d_k = r_k \; , \; \forall k=1, \cdots, +\infty \; ,
+\end{equation}
+with $r_k$ a right-hand-side and $K_k$ a (sparse) symmetric matrix.
+The matrix $K_k$ depends on the type of problems we are solving. In the
+following subsections, we will see that $K_k$ can be written as a positive
+definite matrix or a symmetric quasi-definite matrix.
+
+\subsection{Linear programming} \label{sec:ipm:LP}
+A linear problem \eqref{eqn:opt} rewrites as
+\begin{equation}\label{eq:LP}
+  \min_{x} \; c^\top x \quad \text{s.t.} \quad A x = b \; , \; x \geq 0 \; ,
+\end{equation}
+with $(c, A, b) \in \mathbb{R}^n \times \mathbb{R}^{m \times n} \times \mathbb{R}^{m}$ given problem data.
+For a given barrier parameter $\mu_k$, \gls{ipm} solves the barrier subproblem for $x > 0$
+\begin{equation}\label{eq:barrierLP}
+  \min_{x} \; c^\top x - \mu_k \sum_{i=1}^n \log(x_i) \quad \text{s.t.}  \quad Ax = b \; ,
+\end{equation}
+whose KKT conditions are
+\begin{equation}
+  c + A^\top y - s = 0 \; , \quad Ax - b = 0 \; , \quad x \cdot s = \mu e \; ,
+\end{equation}
+for $y\in \mathbb{R}^m$ and $s \in \mathbb{R}^n$ the multipliers associated
+respectively to the equality constraint and the bound constraints.
+At each iteration, the algorithm updates the barrier parameter $\mu_k$ using
+the current complementarity measure $\delta(x, s, y) = \frac{1}{n} x^\top s$.
+
+The \gls{kkt} linear system associated to \eqref{eq:barrierLP} is
+\begin{equation}
+  \label{eq:LP:unreduced}
+  \begin{bmatrix}
+    0 & A^\top & - I \\
+    A & 0 & 0 \\
+    S & 0 & X
+  \end{bmatrix}
+  \begin{bmatrix}
+    \Delta x \\ \Delta y \\ \Delta s
+  \end{bmatrix}
+  =  -
+  \begin{bmatrix}
+    c + A^\top y - s \\
+    Ax - b \\
+    XS e - \sigma \mu e
+  \end{bmatrix}\; ,
+\end{equation}
+with $\sigma$ a centering parameter computed by the \gls{ipm} algorithm.
+
+For $\Sigma := X^{-1} S$, the system \eqref{eq:LP:unreduced} is equivalent to
+the \emph{augmented KKT system}
+\begin{equation}
+  \label{eq:LP:augmented}
+  \begin{bmatrix}
+    \Sigma & A^\top \\
+    A & 0
+  \end{bmatrix}
+  \begin{bmatrix}
+    \Delta x \\ \Delta y
+  \end{bmatrix}
+  =  -
+  \begin{bmatrix}
+    c + A^\top y - \sigma \mu X^{-1} e \\
+    Ax - b
+  \end{bmatrix}\; ,
+\end{equation}
+which can be further reduced down to the \emph{normal KKT system}
+\begin{equation}
+  \label{eq:LP:normal}
+  \left(A \Sigma^{-1} A^\top \right) \Delta y =
+  Ax - b - A\Sigma^{-1} \left( c + A^\top y - \sigma \mu X^{-1} e \right) \;.
+\end{equation}
+The matrix $\Sigma$ being diagonal, it is easy to inverse.
+If $A$ has full row-rank, the matrix $A \Sigma^{-1} A^\top$ is positive
+definite and Cholesky factorizable.
+
+On its end, the augmented KKT system~\eqref{eq:LP:augmented} is
+symmetric indefinite and without further treatment has to be
+decomposed by a $L B L^{\top}$ factorization.
+A usual workaround is introduce regularization parameters
+$(\delta_x, \delta_c) > 0$ and to solve instead the \emph{regularized KKT system}:
+\begin{equation}
+  \label{eq:LP:regularized}
+  \begin{bmatrix}
+    \Sigma + \delta_x I & A^\top \\
+    A & -\delta_c I
+  \end{bmatrix}
+  \begin{bmatrix}
+    \Delta x \\ \Delta y
+  \end{bmatrix}
+  =  -
+  \begin{bmatrix}
+    c + A^\top y - \sigma \mu X^{-1} e \\
+    Ax - b
+  \end{bmatrix}\; .
+\end{equation}
+The matrix $\Sigma$ being positive definite, the system \eqref{eq:LP:regularized} is SQD.
+
+
+
+
+
+\subsection{Nonlinear programming}
+In most of practical implementations, slack variables are introduced as follows:
 \begin{align}\label{eqn:barrier}
   \min_{x,s } \; & f(x) - \mu \sum_{i=1}^m \log(s_i) \quad \text{s.t.} \; g(x) + s = 0.
 \end{align}
