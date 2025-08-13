@@ -1,0 +1,20 @@
+\begin{tabular}{|c|c|cc|cc|cc|cc|}
+  \hline
+  \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (0)}& \multicolumn{2}{c|}{\textbf{Medium} (6)}& \multicolumn{2}{c|}{\textbf{Large} (4)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (21)}}\\
+                        && \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}&&\\
+                        &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
+  \hline
+    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 0 & -9.0000 & 6 & 13.7577 & 4 & 2.1992 & 10 & 8.6441  \\
+                        & Ipopt (cpu) & 0 & -9.0000 & 6 & 14.1910 & 4 & 27.9222 & 10 & 18.4872  \\
+
+  \hline
+    \multirow{2}{*}{$10^{-8}$} & MadNLP (gpu) & 0 & -9.0000 & 6 & 2.9238 & 4 & 2.6667 & 9 & 2.8203  \\
+                        & Ipopt (cpu) & 0 & -9.0000 & 5 & 16.2741 & 4 & 36.7646 & 9 & 23.0890  \\
+
+  \hline
+\end{tabular}
+
+%%% Local Variables:
+%%% mode: LaTeX
+%%% TeX-master: "main"
+%%% End:

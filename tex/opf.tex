@@ -1,0 +1,15 @@
+\begin{tabular}{|c|c|cc|cc|cc|cc|}
+  \hline
+  \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (10)}& \multicolumn{2}{c|}{\textbf{Medium} (44)}& \multicolumn{2}{c|}{\textbf{Large} (12)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (132)}}\\
+                        && \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}&&\\
+                        &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
+  \hline
+    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 10 & 0.1494 & 44 & 1.6276 & 12 & 3.4616 & 66 & 1.6979  \\
+                        & Ipopt (cpu) & 10 & 0.0226 & 44 & 2.6215 & 12 & 35.3907 & 66 & 5.3817  \\
+
+  \hline
+    \multirow{2}{*}{$10^{-8}$} & MadNLP (gpu) & 10 & 0.2932 & 43 & 4.2256 & 10 & 20.8270 & 66 & 5.5900  \\
+                        & Ipopt (cpu) & 10 & 0.0214 & 44 & 2.8615 & 12 & 35.0440 & 66 & 5.5541  \\
+
+  \hline
+\end{tabular}
