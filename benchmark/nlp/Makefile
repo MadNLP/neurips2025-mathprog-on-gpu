@@ -10,22 +10,22 @@ all: opf cops
 opf: table-opf.tex
 table-opf.tex: 
 	@echo "Running Julia benchmarks to produce table-opf.tex..."
-	julia --project --startup-file=no --color=yes runbenchmark.jl --device $(DEVICE) $(if $(filter 1,$(CONTINUE)),--continue) opf
-	julia --project --startup-file=no --color=yes maketable.jl opf
+	julia --project --color=yes runbenchmark.jl --device $(DEVICE) $(if $(filter 1,$(CONTINUE)),--continue) opf
+	julia --project --color=yes maketable.jl opf
 
 # Target that runs the Julia command to produce opf/results.tex
 miplib: table-miplib.tex
 table-miplib.tex: 
 	@echo "Running Julia benchmarks to produce table-miplib.tex..."
-	julia --project --startup-file=no --color=yes runbenchmark.jl --device $(DEVICE) $(if $(filter 1,$(CONTINUE)),--continue) miplib
-	julia --project --startup-file=no --color=yes maketable.jl miplib
+	julia --project --color=yes runbenchmark.jl --device $(DEVICE) $(if $(filter 1,$(CONTINUE)),--continue) miplib
+	julia --project --color=yes maketable.jl miplib
 
 # Target that runs the Julia command to produce opf/results.tex
 cops: table-cops.tex
 table-cops.tex: 
 	@echo "Running Julia benchmarks to produce table-cops.tex..."
-	julia --project --startup-file=no --color=yes runbenchmark.jl --device $(DEVICE) $(if $(filter 1,$(CONTINUE)),--continue) cops
-	julia --project --startup-file=no --color=yes maketable.jl cops
+	julia --project --color=yes runbenchmark.jl --device $(DEVICE) $(if $(filter 1,$(CONTINUE)),--continue) cops
+	julia --project --color=yes maketable.jl cops
 
 
 # Optional clean target to remove the opf file

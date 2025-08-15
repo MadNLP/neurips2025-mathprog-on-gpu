@@ -31,7 +31,7 @@ else
     results = Dict{String,Any}()
 end
 
-if parse_args(s)["class"] == "opf"
+if class == "opf"
     using ExaModelsPower
     cases = [
         (case, (;backend = nothing) -> opf_model(case;form = :polar,T = Float64,backend)[1])
@@ -39,7 +39,7 @@ if parse_args(s)["class"] == "opf"
             x -> endswith(x, ".m"),
             readdir(joinpath(artifact"PGLib_opf", "pglib-opf-23.07"))
             )]
-elseif parse_args(s)["class"] == "cops"
+elseif class == "cops"
     using ExaModelsExamples
     cases = [
         # Mittelmann instances
@@ -59,12 +59,12 @@ elseif parse_args(s)["class"] == "cops"
         ("gasoil_model-(12800)", (;backend = nothing)->ExaModelsExamples.gasoil_model(12800;backend)),
         ("marine_model-(12800)", (;backend = nothing)->ExaModelsExamples.marine_model(12800;backend)),
         ("pinene_model-(12800)", (;backend = nothing)->ExaModelsExamples.pinene_model(12800;backend)),
-        ("robot_model-(12800)", (;backend = nothing)->ExaModelsExamples.robot_model(12800;backend)),
+        ("robot_model-(6400)", (;backend = nothing)->ExaModelsExamples.robot_model(6400;backend)),
         ("rocket_model-(51200)", (;backend = nothing)->ExaModelsExamples.rocket_model(51200;backend)),
         ("steering_model-(51200)", (;backend = nothing)->ExaModelsExamples.steering_model(51200;backend)),
     ]
 else
-    error("Unknown class: $(parse_args(s)["class"])")
+    error("Unknown class: $(class)")
 end
 
 options = [
@@ -74,7 +74,7 @@ options = [
             tol = 1e-4,
             bound_relax_factor = 1e-4,
             max_wall_time = 900.,
-            linear_solver="ma27",
+            linear_solver=class == "opf" ? "ma27" : "ma97",
             dual_inf_tol = 10000.0,
             constr_viol_tol = 10000.0,
             compl_inf_tol = 10000.0,
@@ -93,7 +93,7 @@ options = [
             tol = 1e-8,
             bound_relax_factor = 1e-8,
             max_wall_time = 900.,
-            linear_solver="ma27",
+            linear_solver=class == "opf" ? "ma27" : "ma97",
             dual_inf_tol = 10000.0,
             constr_viol_tol = 10000.0,
             compl_inf_tol = 10000.0,

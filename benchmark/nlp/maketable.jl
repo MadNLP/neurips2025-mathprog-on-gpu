@@ -13,8 +13,8 @@ class = parse_args(s)["class"]
 JLD2.@load "results-$(class).jld2" results
 
 maxtime = 900
-nnzcut1 = 10000
-nnzcut2 = 1000000
+nnzcut1 = 2^18
+nnzcut2 = 2^22
 
 check_time_ipopt(status) = status == :first_order 
 check_time_madnlp(status) = Int(status) == 1 
