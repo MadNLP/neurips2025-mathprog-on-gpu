@@ -1,4 +1,4 @@
-using CUDA, MadNLPGPU, NLPModelsIpopt, JLD2, Artifacts, Logging, HSL_jll, ArgParse
+using ExaModels, CUDA, MadNLPGPU, NLPModelsIpopt, JLD2, Artifacts, Logging, HSL_jll, ArgParse
 
 s = ArgParseSettings()
 
@@ -31,6 +31,8 @@ else
     results = Dict{String,Any}()
 end
 
+max_wall_time = 900. # 15 minutes
+
 if class == "opf"
     using ExaModelsPower
     cases = [
@@ -39,9 +41,32 @@ if class == "opf"
             x -> endswith(x, ".m"),
             readdir(joinpath(artifact"PGLib_opf", "pglib-opf-23.07"))
             )]
+    skip_ipopt = [
+        # none
+    ]
 elseif class == "cops"
     using ExaModelsExamples
     cases = [
+        # Very small
+        ("bearing_model-(200, 200)", (;backend = nothing)->ExaModelsExamples.bearing_model(200, 200;backend)),
+        ("camshape_model-(1600)", (;backend = nothing)->ExaModelsExamples.camshape_model(1600;backend)),
+        ("elec_model-(100)", (;backend = nothing)->ExaModelsExamples.elec_model(100;backend)),
+        ("gasoil_model-(800)", (;backend = nothing)->ExaModelsExamples.gasoil_model(800;backend)),
+        ("marine_model-(400)", (;backend = nothing)->ExaModelsExamples.marine_model(400;backend)),
+        ("pinene_model-(800)", (;backend = nothing)->ExaModelsExamples.pinene_model(800;backend)),
+        ("robot_model-(400)", (;backend = nothing)->ExaModelsExamples.robot_model(400;backend)),
+        ("rocket_model-(3200)", (;backend = nothing)->ExaModelsExamples.rocket_model(3200;backend)),
+        ("steering_model-(3200)", (;backend = nothing)->ExaModelsExamples.steering_model(3200;backend)),
+        # Small
+        ("bearing_model-(300, 300)", (;backend = nothing)->ExaModelsExamples.bearing_model(300, 300;backend)),
+        ("camshape_model-(3200)", (;backend = nothing)->ExaModelsExamples.camshape_model(3200;backend)),
+        ("elec_model-(200)", (;backend = nothing)->ExaModelsExamples.elec_model(200;backend)),
+        ("gasoil_model-(1600)", (;backend = nothing)->ExaModelsExamples.gasoil_model(1600;backend)),
+        ("marine_model-(800)", (;backend = nothing)->ExaModelsExamples.marine_model(800;backend)),
+        ("pinene_model-(1600)", (;backend = nothing)->ExaModelsExamples.pinene_model(1600;backend)),
+        ("robot_model-(800)", (;backend = nothing)->ExaModelsExamples.robot_model(800;backend)),
+        ("rocket_model-(6400)", (;backend = nothing)->ExaModelsExamples.rocket_model(6400;backend)),
+        ("steering_model-(6400)", (;backend = nothing)->ExaModelsExamples.steering_model(6400;backend)),
         # Mittelmann instances
         ("bearing_model-(400, 400)", (;backend = nothing)->ExaModelsExamples.bearing_model(400, 400;backend)),
         ("camshape_model-(6400)", (;backend = nothing)->ExaModelsExamples.camshape_model(6400;backend)),
@@ -52,12 +77,22 @@ elseif class == "cops"
         ("robot_model-(1600)", (;backend = nothing)->ExaModelsExamples.robot_model(1600;backend)),
         ("rocket_model-(12800)", (;backend = nothing)->ExaModelsExamples.rocket_model(12800;backend)),
         ("steering_model-(12800)", (;backend = nothing)->ExaModelsExamples.steering_model(12800;backend)),
-        # Large-scale instances
-        ("bearing_model-(800, 800)", (;backend = nothing)->ExaModelsExamples.bearing_model(800, 800;backend)),
+        # Large
+        ("bearing_model-(600, 600)", (;backend = nothing)->ExaModelsExamples.bearing_model(600, 600;backend)),
         ("camshape_model-(12800)", (;backend = nothing)->ExaModelsExamples.camshape_model(12800;backend)),
         ("elec_model-(800)", (;backend = nothing)->ExaModelsExamples.elec_model(800;backend)),
+        ("gasoil_model-(6400)", (;backend = nothing)->ExaModelsExamples.gasoil_model(6400;backend)),
+        ("marine_model-(3200)", (;backend = nothing)->ExaModelsExamples.marine_model(3200;backend)),
+        ("pinene_model-(6400)", (;backend = nothing)->ExaModelsExamples.pinene_model(6400;backend)),
+        ("robot_model-(3200)", (;backend = nothing)->ExaModelsExamples.robot_model(3200;backend)),
+        ("rocket_model-(25600)", (;backend = nothing)->ExaModelsExamples.rocket_model(25600;backend)),
+        ("steering_model-(25600)", (;backend = nothing)->ExaModelsExamples.steering_model(25600;backend)),
+        # Very large
+        ("bearing_model-(800, 800)", (;backend = nothing)->ExaModelsExamples.bearing_model(800, 800;backend)),
+        ("camshape_model-(25600)", (;backend = nothing)->ExaModelsExamples.camshape_model(25600;backend)),
+        ("elec_model-(1600)", (;backend = nothing)->ExaModelsExamples.elec_model(1600;backend)),
         ("gasoil_model-(12800)", (;backend = nothing)->ExaModelsExamples.gasoil_model(12800;backend)),
-        ("marine_model-(12800)", (;backend = nothing)->ExaModelsExamples.marine_model(12800;backend)),
+        ("marine_model-(6400)", (;backend = nothing)->ExaModelsExamples.marine_model(6400;backend)),
         ("pinene_model-(12800)", (;backend = nothing)->ExaModelsExamples.pinene_model(12800;backend)),
         ("robot_model-(6400)", (;backend = nothing)->ExaModelsExamples.robot_model(6400;backend)),
         ("rocket_model-(51200)", (;backend = nothing)->ExaModelsExamples.rocket_model(51200;backend)),
@@ -73,8 +108,9 @@ options = [
             ;
             tol = 1e-4,
             bound_relax_factor = 1e-4,
-            max_wall_time = 900.,
-            linear_solver=class == "opf" ? "ma27" : "ma97",
+            max_wall_time = max_wall_time,
+            linear_solver=class == "opf" ? "ma27" : "ma57",
+            ma57_automatic_scaling="yes",
             dual_inf_tol = 10000.0,
             constr_viol_tol = 10000.0,
             compl_inf_tol = 10000.0,
@@ -84,7 +120,7 @@ options = [
         madnlp_opt = (
             ;
             tol = 1e-4,
-            max_wall_time = 900.,
+            max_wall_time = max_wall_time,
         ),
     )
     :lowtol => (
@@ -92,8 +128,9 @@ options = [
             ;
             tol = 1e-8,
             bound_relax_factor = 1e-8,
-            max_wall_time = 900.,
-            linear_solver=class == "opf" ? "ma27" : "ma97",
+            max_wall_time = max_wall_time,
+            linear_solver=class == "opf" ? "ma27" : "ma57",
+            ma57_automatic_scaling="yes",
             dual_inf_tol = 10000.0,
             constr_viol_tol = 10000.0,
             compl_inf_tol = 10000.0,
@@ -103,7 +140,7 @@ options = [
         madnlp_opt = (
             ;
             tol = 1e-8,
-            max_wall_time = 900.,
+            max_wall_time = max_wall_time,
         ),
     )
 ]
@@ -123,20 +160,22 @@ for (case, model) in cases
         t_madnlp = @elapsed begin
             sol_madnlp = madnlp(m_gpu; output_file = "madnlp_$(case)_$(optname).log", madnlp_opt...)
         end
+        log_madnlp = read("madnlp_$(case)_$(optname).log", String),
 
+        
         @info "Solving with ipopt"
         m_cpu = model()
         ipopt(m_cpu; output_file = "ipopt_$(case)_$(optname).log", ipopt_opt...)
         t_ipopt  = @elapsed begin
             sol_ipopt = ipopt(m_cpu; output_file = "ipopt_$(case)_$(optname).log", ipopt_opt...)
         end
+        log_ipopt = read("ipopt_$(case)_$(optname).log", String)
 
         results["$(case)_$(optname)"] = (
             ;
             t_madnlp, t_ipopt, sol_madnlp, sol_ipopt,
+            log_madnlp, log_ipopt,
             meta = m_cpu.meta,
-            log_madnlp = read("madnlp_$(case)_$(optname).log", String),
-            log_ipopt = read("ipopt_$(case)_$(optname).log", String),
         )
 
         # resave results to JLD2 file

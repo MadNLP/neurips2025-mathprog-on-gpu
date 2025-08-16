@@ -14,18 +14,18 @@ JLD2.@load "results-$(class).jld2" results
 
 maxtime = 900
 nnzcut1 = 2^18
-nnzcut2 = 2^22
+nnzcut2 = 2^20
 
-check_time_ipopt(status) = status == :first_order 
-check_time_madnlp(status) = Int(status) == 1 
+check_time_ipopt(status) = status in [:first_order , :acceptable]
+check_time_madnlp(status) = Int(status) in [1, 2]
 
 total = [(
     name = key,
     nnz = val.meta.nnzj + val.meta.nnzh,
-    solved_ipopt = check_time_ipopt(val.sol_ipopt.status),
-    t_ipopt = val.t_ipopt,
+    t_ipopt = min(val.t_ipopt, maxtime),
+    t_madnlp = min(val.t_madnlp, maxtime), 
     solved_madnlp = check_time_madnlp(val.sol_madnlp.status),
-    t_madnlp = val.t_madnlp, 
+    solved_ipopt = val.sol_ipopt == :skipped ? false : check_time_ipopt(val.sol_ipopt.status),
 ) for (key, val) in results]
 
 total_lowtol = filter(x -> endswith(x.name, "_lowtol"), total)
@@ -41,7 +41,7 @@ function write_row(tol, total)
     large = filter(x -> x.nnz >= nnzcut2, total)
 
     solved_total_ipopt = sum(x.solved_ipopt for x in total; init = 0)
-    solved_total_madnlp = sum(x.solved_ipopt for x in total; init = 0)
+    solved_total_madnlp = sum(x.solved_madnlp for x in total; init = 0)
     solved_small_ipopt = sum(x.solved_ipopt for x in small; init = 0)
     solved_small_madnlp = sum(x.solved_madnlp for x in small; init = 0)
     solved_medium_ipopt = sum(x.solved_ipopt for x in medium; init = 0)
@@ -67,8 +67,8 @@ end
 write("table-$(class).tex", """
 \\begin{tabular}{|c|c|cc|cc|cc|cc|}
   \\hline
-  \\multirow{ 3}{*}{Tol} & \\multirow{ 3}{*}{Solver} & \\multicolumn{2}{c|}{\\textbf{Small} ($(nsmall))}& \\multicolumn{2}{c|}{\\textbf{Medium} ($(nmedium))}& \\multicolumn{2}{c|}{\\textbf{Large} ($(nlarge))}& \\multicolumn{2}{c|}{\\multirow{2}{*}{\\textbf{Total} ($(length(total)))}}\\\\
-                        && \\multicolumn{2}{c|}{($(maxtime) sec max)}& \\multicolumn{2}{c|}{($(maxtime) sec max)}& \\multicolumn{2}{c|}{($(maxtime) sec max)}&&\\\\
+  \\multirow{ 3}{*}{Tol} & \\multirow{ 3}{*}{Solver} & \\multicolumn{2}{c|}{\\textbf{Small} ($(nsmall))}& \\multicolumn{2}{c|}{\\textbf{Medium} ($(nmedium))}& \\multicolumn{2}{c|}{\\textbf{Large} ($(nlarge))}& \\multicolumn{2}{c|}{\\multirow{2}{*}{\\textbf{Total} ($ntotal)}}\\\\
+                        && \\multicolumn{2}{c|}{nnz\$<2^{18}\$}& \\multicolumn{2}{c|}{\$2^{18}\\leq\$nnz\$<2^{20}\$}& \\multicolumn{2}{c|}{\$2^{20}\\leq\$ nnz}&&\\\\
                         &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\\\
   \\hline
   $(write_row("10^{-4}", total_hightol))
