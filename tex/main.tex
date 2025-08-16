@@ -464,12 +464,12 @@ The numerical results can be reproduced with the source code and Manifest file a
 In this benchmark, we compare the performance of MadNLP running on GPU and Ipopt running on CPU. For both solvers, the \gls*{nlp} function callbacks are provided by ExaModels.jl (either running on GPU or CPU). MadNLP is configured with cuDSS as the linear solver, while Ipopt is configured with Ma27 as the linear solver. Ipopt+ExaModels+Ma27 is currently the best known configuration for solving large, sparse \gls*{nlp} problems on a single-threaded CPU, and it is used as the baseline for comparison. The solver performance is benchmarked against the pglib-opf benchmark suite \cite{} and the COPS benchmark suite \cite{}. CUTEst \cite{} is excluded from the benchmark, as the library mostly contains small- to medium-sized \gls*{nlp} problems, which are not suitable for benchmarking the performance of GPU-accelerated solvers, and currently there is no ExaModels.jl implementation of CUTEst.
 
 \paragraph{AC Optimal Power Flow}
-Depending on the number of nonzeros in the augmented KKT system, we categorize the instances into small, medium, and large. The small instances have less than 1 million nonzeros, the medium instances have between 1 million and 10 million nonzeros, and the large instances have more than 10 million nonzeros. The results are summarized in Table \ref{tab:pglib-opf}, and the raw data are available in the paper repository.
+The results are summarized in the table below:
 \begin{center}
   \footnotesize
   \input{opf.tex}
 \end{center}
-
+The results indicate that the GPU solver can achieve more than 10x speed-up on avarage for the 11 largest instances (with more than $2^{20}$ non-zeros) when the problem is solved up to low precision. The speed-up is rather small for medium-sized instances, and there is practically no advantage for small instances. This is expected, as the GPU solver is designed to handle large-scale problems, and with small-scale problems, one cannot fully utilize the available parallel cores. For high precision, however, the GPU solver is not able to achieve the same level of performance as the CPU solver, which is expected, as the the condensed system utilized within the GPU solvers must handle worse conditioning. One can see that in total, the GPU solver converges in 2 less instances than the CPU solver. However, for the converged instances, the speed-up is still substantial (3x speed-up in SGM 10 on large instances).
 % \begin{table}[t]
 %   \centering\footnotesize
 %   \caption{Solve time in seconds and SGM10 on instances of pglib-opf}\label{tab:pglib-opf}
@@ -477,11 +477,12 @@ Depending on the number of nonzeros in the augmented KKT system, we categorize t
 
 
 \paragraph{COPS Benchmark}
-The results are summarized in Table \ref{tab:cops}, and the raw data are available in the paper repository.
+The results are summarized in the table below:
 \begin{center}
   \footnotesize
   \input{cops.tex}
-\end{center}  
+\end{center}
+The results are largely similar to the pglib-opf benchmark, but the speed-up is more pronounced in these instances, as COPS benchmark library is designed to be scalable, thus exhibiting highly regular structure, which provides more opportunities for exploiting parallelism. Again, for large instanes, one can achieve more than 10x speed-up on average, while for small- and medium-sized instances, the GPU solver is not able to outperform the CPU solver. Speed-up is substantial also for high-precision solves, but the speed-up factor is smaller overall.
 
 % \begin{table}[t]
 %   \centering\footnotesize
