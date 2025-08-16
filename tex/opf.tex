@@ -1,15 +1,15 @@
 \begin{tabular}{|c|c|cc|cc|cc|cc|}
   \hline
-  \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (10)}& \multicolumn{2}{c|}{\textbf{Medium} (44)}& \multicolumn{2}{c|}{\textbf{Large} (12)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (132)}}\\
-                        && \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}&&\\
+  \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (31)}& \multicolumn{2}{c|}{\textbf{Medium} (24)}& \multicolumn{2}{c|}{\textbf{Large} (11)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (66)}}\\
+                        && \multicolumn{2}{c|}{nnz$<2^{18}$}& \multicolumn{2}{c|}{$2^{18}\leq$nnz$<2^{20}$}& \multicolumn{2}{c|}{$2^{20}\leq$ nnz}&&\\
                         &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
   \hline
-    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 10 & 0.1494 & 44 & 1.6276 & 12 & 3.4616 & 66 & 1.6979  \\
-                        & Ipopt (cpu) & 10 & 0.0226 & 44 & 2.6215 & 12 & 35.3907 & 66 & 5.3817  \\
+    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 31 & 0.4166 & 24 & 2.6380 & 11 & 3.7040 & 66 & 1.6979  \\
+                        & Ipopt (cpu) & 31 & 0.3970 & 24 & 5.0697 & 11 & 38.5053 & 66 & 5.3817  \\
 
   \hline
-    \multirow{2}{*}{$10^{-8}$} & MadNLP (gpu) & 10 & 0.2932 & 43 & 4.2256 & 10 & 20.8270 & 66 & 5.5900  \\
-                        & Ipopt (cpu) & 10 & 0.0214 & 44 & 2.8615 & 12 & 35.0440 & 66 & 5.5541  \\
+    \multirow{2}{*}{$10^{-8}$} & MadNLP (gpu) & 30 & 2.5037 & 24 & 4.6016 & 10 & 12.8040 & 64 & 4.6228  \\
+                        & Ipopt (cpu) & 31 & 0.5100 & 24 & 5.4292 & 11 & 37.7818 & 66 & 5.5541  \\
 
   \hline
 \end{tabular}
