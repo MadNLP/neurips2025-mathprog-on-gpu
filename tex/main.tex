@@ -182,7 +182,7 @@
 \begin{abstract}
 In recent years, GPU-accelerated optimization solvers based on second-order methods (e.g., interior-point) have gained momentum with the advent of mature and efficient GPU-accelerated direct linear solvers, such as cuDSS.
 This paper provides an overview of the current state of the art in GPU-based implementations of second-order solvers, focusing on linear and nonlinear programming.
-We begin by highlighting the capabilities and limitations of currently available GPU-accelerated direct linear solvers. 
+We begin by highlighting the capabilities and limitations of GPU-accelerated direct linear solvers currently available. 
 Next, we discuss different formulations of \gls*{kkt} system for second-order methods and evaluate their suitability for GPU implementation.
 We also discuss strategies for computing sparse Jacobian and Hessian matrices on GPUs.
 Finally, we present numerical results demonstrating scalability of the GPU solver (often exceeding 10x speed-ups over the best CPU alternatives) and examine current limitations of existing solvers.
@@ -190,13 +190,13 @@ Finally, we present numerical results demonstrating scalability of the GPU solve
 
 \section{Introduction}\label{eqn:intro}
 
-This paper focuses on the implementation of solvers for the problems of the following sort:
+This paper focuses on the implementation of solvers for problems of the following sort:
 \begin{align}\label{eqn:opt}
   \min_{x } \; f(x) \quad \text{s.t.} \quad g(x) \geq 0,
 \end{align}
 where \(x \in \mathbb{R}^n\) is the decision variable, and \(f: \mathbb{R}^n \to \mathbb{R}\) and \(g: \mathbb{R}^n \to \mathbb{R}^m\) are smooth objective and constraint functions.
 % For simplicity, we do not explicitly consider equality constraints.
-We shall discuss both \gls*{lp} ($f$ and $g$ are affine) and \gls*{nlp} ($f$ and $g$ are nonlinear) and will places emphasis on the algorithms targetting large, sparse instances.
+We shall discuss both \gls*{lp} ($f$ and $g$ are affine) and \gls*{nlp} ($f$ and $g$ are nonlinear) and will place emphasis on the algorithms targeting large and sparse instances.
 % Existing solvers like Ipopt, Knitro, OSQP, HiGHS, and Gurobi are designed to exploit sparsity and handle potentially large problem sizes.
 
 Despite advances in general-purpose GPU computing, state-of-the-art mathematical programming solvers have not widely adopted these techniques.
@@ -206,20 +206,20 @@ As a result, integrating GPUs into mathematical programming solvers poses greate
 
 First-order algorithms have emerged as a suitable algorithm class for GPU implementation.
 Because these algorithms rely primarily on SpMV and simple vector operations, GPU acceleration is less constrained by the availability of low-level kernels, which are provided by most vendors (CUSPARSE, ROCSPARSE, oneAPI). 
-Notably, several successful implementations have been reported in the recent years, such as cuPDLP \cite{}, cuOSQP \cite{}, and cuOPT \cite{}.
-However, fast convergence is required in many applications, and first-order methods are inherently limited in those applications due to their linear convergence order, motivating the development of second-order solvers.
+In particular, several successful implementations have been reported in recent years, such as cuPDLP \cite{}, cuOSQP \cite{}, and cuOPT \cite{}.
+However, fast convergence is required in many applications, and first-order methods are inherently limited in those applications because of their linear convergence order, motivating the development of second-order solvers.
 
-Development of second-order solver heavily relies on \emph{direct linear solvers}.
+The development of a second-order solver is heavily based on \emph{direct linear solvers}.
 In particular, if the \gls*{ipm} is used, each barrier iteration requires solving a linear system, known as the \gls{kkt} system.
-These KKT systems become extremely ill-conditioned near the solution, which makes the use of iterative linear solvers, such as preconditioned Krylov methods, ineffective in most cases
+These KKT systems become extremely ill-conditioned near the solution, which makes the use of iterative linear solvers, such as preconditioned Krylov methods, ineffective in most cases.
 The situation is worse in nonconvex settings, as the KKT systems lack positive quasi-definiteness, making it even harder to ensure the numerical stability.
 For many years, the development of GPU-accelerated second-order solvers has been hindered by the lack of robust and efficient direct linear solvers for GPUs.
 
-This status quo has changed in the recent years as NVIDIA released cuDSS, a direct sparse solver library for NVIDIA GPUs.
+This status quo has changed in recent years as NVIDIA released cuDSS, a direct sparse solver library for NVIDIA GPUs.
 cuDSS provides % robust
 implementations of sparse Cholesky and LDL$^\top$ factorizations, which are core decompositions in many second-order solvers.
-These capabilities can be directly utilized in convex settings.
-For nonconvex problems, cuDSS does not currently provide the robust LBL$^\top$ factorization that ensures a symmetric indefinite system can always be factorized.
+These capabilities can be used directly in convex settings.
+For nonconvex problems, cuDSS currently does not provide the robust LBL$^\top$ factorization that ensures a symmetric indefinite system can always be factorized.
 But the available LDL$^\top$ and Cholesky factorizations allow us to implement modified versions of the \gls*{ipm}.
 Not surprisingly, cuDSS has fueled advances in GPU-accelerated second-order solvers.
 Several solvers, including MadNLP \cite{} and Clarabel \cite{}, already integrate cuDSS, and reporting remarkable speedups on large-scale instances.
