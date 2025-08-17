@@ -333,7 +333,7 @@ search direction by solving the following (regularized) KKT system:
     g(x) - s\\
   \end{bmatrix},
 \end{align}
-where $\mathcal{L}(x,\lambda,s)  := f(x) - \lambda^\top (g(x) - s)$ is the Lagrangian function and $\delta_p,\delta_d\geq 0$ are primal and dural regurlization parameters employed by the \gls*{ipm} solver to ensure the well-posedness of \cref{eqn:kkt_system}.
+where $\mathcal{L}(x,\lambda,s)  := f(x) - \lambda^\top (g(x) - s)$ is the Lagrangian function and $\delta_p,\delta_d\geq 0$ are primal and dual reguralization parameters employed by the \gls*{ipm} solver to ensure the well-posedness of \cref{eqn:kkt_system}.
 
 % \paragraph{Eliminating slack variables}
 % $S^{-1}\Lambda + \delta_p I$ is always invertible due to the nature of primal-dual \gls*{ipm}, as the slack $s$ and the dual variable $\lambda$ are always forced to be positive. The resulting system can be written as follows:
