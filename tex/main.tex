@@ -219,7 +219,7 @@ This status quo has changed in the recent years as NVIDIA released cuDSS, a dire
 cuDSS provides % robust
 implementations of sparse Cholesky and LDL$^\top$ factorizations, which are core decompositions in many second-order solvers.
 These capabilities can be directly utilized in convex settings.
-For nonconvex problems, cuDSS does not currently provide the robust LDL$^\top$ factorization that ensures a symmetric indefinite system can always be factorized.
+For nonconvex problems, cuDSS does not currently provide the robust LBL$^\top$ factorization that ensures a symmetric indefinite system can always be factorized.
 But the available LDL$^\top$ and Cholesky factorizations allow us to implement modified versions of the \gls*{ipm}.
 Not surprisingly, cuDSS has fueled advances in GPU-accelerated second-order solvers.
 Several solvers, including MadNLP \cite{} and Clarabel \cite{}, already integrate cuDSS, and reporting remarkable speedups on large-scale instances.
