@@ -61,6 +61,7 @@
 \lstset{basicstyle=\ttfamily\small}
 \usepackage{multirow}
 \usepackage{cleveref}
+\usepackage{graphicx}
 
 \crefname{equation}{}{}
 
@@ -331,7 +332,7 @@ When the problem is strongly convex or when the regularization parameter $\delta
 with $r_d$ an appropriate right-hand-side.
 In the context of linear programming, this is always applicable when $\delta_p>0$, and this system is often called \emph{normal equations} and is often used by default as the diagonal block $\nabla^2_{x x} \mathcal{L}(x, \lambda) + \delta_p I$ is easy to invert.
 Assuming that the primal Hessian is \gls*{spd}, this system is always \gls*{spd}.
-Similarly to the primal condensed system, this system can be arbitrarily dense, and thus, this elimination needs to be used with caution.
+Similarly to the primal condensed system, this system can be arbitrarily dense (when there is a dense column in $\nabla g(x)$.
 \end{itemize}
 
 
@@ -342,7 +343,7 @@ We now explain which KKT system formulation among \cref{eqn:kkt_system,eqn:augme
   For convex programs, all four formulations \cref{eqn:kkt_system,eqn:augmentedKKT,eqn:kkt_dual,eqn:kkt_primal} are appropriate, as any of this system can become SQD for infinitesimal $\delta_p, \delta_d > 0$.
   Thus, one can choose the best option based on the sparsity pattern and degree of ill-conditioning of the KKT system matrix.  
 \item \textit{Nonconvex case}:
-  For nonconvex problems, the primal condensed system \cref{eqn:kkt_primal} is most suitable as it can be made \gls*{spd} by choosing the primal-dual regularization parameters $(\delta_p, \delta_d)$ simply based on inertia correction (i.e., strong factorizability is ensured without incurring excessive regularization). 
+  For nonconvex problems, the primal condensed system \cref{eqn:kkt_primal} is most suitable as it can be made \gls*{spd} by choosing the primal-dual regularization parameters $(\delta_p, \delta_d)$ simply based on inertia correction (i.e., strong factorizability is ensured without incurring excessive regularization).
   The augmented or primal-dual condensed system \cref{eqn:kkt_system,eqn:augmentedKKT}are not suitable because they are not guaranteed to be \gls*{sqd} unless \emph{additionally strong} (beyond what's necessary to ensure descent condition) regularization parameters $(\delta_p, \delta_d)$ are used.
   Dual condensed system \cref{eqn:kkt_dual} is not suitable either, as the $\nabla^2_{x x} \mathcal{L}(x, \lambda) + \delta_p I$ block is typically not diagonal (due to nonlinear constraints).
 \end{itemize}
@@ -350,56 +351,32 @@ We now explain which KKT system formulation among \cref{eqn:kkt_system,eqn:augme
 
 
 \section{Algebraic Modeling Systems and Automatic Differentiation}\label{eqn:ad}
-\Gls*{nlp} solvers require an external oracle to evaluate $f$, $g$, and their first/second-order derivatives. In most modern optimization software stacks, the derivative evaluation code (either compiled or interpreted) is generated in a fully automated fashion through the so-called algebraic modeling systems, typically equipped with \gls*{ad} capabilities, such as AMPL \cite{fourerModelingLanguageMathematical1990}, CasADi \cite{anderssonCasADiSoftwareFramework2019}, JuMP \cite{dunningJuMPModelingLanguage2017}, Pyomo \cite{hartPyomoModelingSolving2011}, and others. To enable efficient derivative evaluations and ensure a fully GPU-resident optimization workflow, it is crucial to develop algebraic modeling systems that can provide derivative evaluation code in the form of GPU kernels.
+\Gls*{nlp} solvers require an external oracle to evaluate $f$, $g$, and their first/second-order derivatives. In most modern optimization software stacks, the derivative evaluation code (either compiled or interpreted) is generated in a fully automated fashion through the so-called \emph{algebraic modeling systems}, typically equipped with \gls*{ad} capabilities, such as AMPL \cite{fourerModelingLanguageMathematical1990}, CasADi \cite{anderssonCasADiSoftwareFramework2019}, JuMP \cite{dunningJuMPModelingLanguage2017}, Pyomo \cite{hartPyomoModelingSolving2011}, Gravity \cite{hijaziGravityMathematicalModeling2018}, and others. As mathematical programming applications are primarily sparse, historically these systems are developed independently from the machine learning frameworks, which typically focus on dense matrix operations.
 
-To achieve this, one can focus on the fact that many practical instances of large-scale sparse mathematical programs exhibit highly repetitive structures. For example, $f$ may be a sum of many terms (e.g., $f(x) = \sum_{p\in P} f^o(x; p)$), and $g$ may be a collection of many constraints generated from a common template (e.g., $g(x) = \left\{g^o(x; p)\right\}_{p\in P}$). If such a structure exists, which is true for many classical optimization instances, the evaluation and differentiation of $f$ and $g$ become embarrassingly parallel, making it possible to construct them as GPU kernels. The emerging algebraic modeling systems, such as ExaModels.jl and Gravity, are designed to capture such repeated structures and provide the derivative evaluation kernels in an automated fashion. For example, ExaModels.jl requires the user to specify the objective and constraint functions always in the form of an iterator, such as
+To enable efficient derivative evaluations and ensure a fully GPU-resident optimization workflow, it is crucial to develop algebraic modeling systems that can provide derivative evaluation code in the form of GPU kernels.
+To achieve this, one can focus on the fact that many practical instances of large-scale sparse mathematical programs exhibit highly repetitive structures. For example, $f$ may be a sum of many terms (e.g., $f(x) = \sum_{p\in P} f^o(x; p)$), and $g$ may be a collection of many constraints generated from a common template (e.g., $g(x) = \left\{g^o(x; p)\right\}_{p\in P}$). If such a structure exists, the evaluation and differentiation of $f$ and $g$ become embarrassingly parallel, making it possible to construct them as GPU kernels. The emerging algebraic modeling systems, such as ExaModels.jl, are designed to capture such repeated structures and provide the derivative evaluation kernels in an automated fashion. For example, ExaModels.jl requires the user to specify the objective and constraint functions always in the form of an iterator, such as
 \begin{lstlisting}
   objective(c, 100 * (x[i-1]^2 - x[i])^2 + (x[i-1] - 1)^2 for i = 2:N)
 \end{lstlisting}
 which corresponds to the case of $f^o(x; p) = 100(x[p-1]^2 - x[p])^2 + (x[p-1]-1)^2$ and $p\in\{2,\cdots,N\}$. This syntax allows the user to inform the modeling system of repeated structures in the model so that later the GPU kernel for derivative evaluation can be generated.
 
 \section{Numerical Results}\label{eqn:num}
-This section provides performance benchmarks for the GPU solvers compared to state-of-the-art CPU solvers. The numerical results can be reproduced with the source code and Manifest file available at \url{https://github.com/MadNLP/neurips2025-mathprog-on-gpu}. The benchmark was performed on a workstation with two Intel(R) Xeon(R) Platinum 6130 CPUs @ 2.10GHz, two Quadro GV 100 GPUs, and 128 GB of RAM. When reporting the solve time for multiple instances, we represent them using the shifted geometric mean: $\left(\prod_{i=1}^n (t_i + \Delta)\right)^{1/n} - \Delta$, where $t_i$ is the solve time for the $i$-th instance and $\Delta$ is the shift factor. We denote this metric with $\Delta = 10$ as SGM10. If an instance is unsolved, its solving time is set to the corresponding time limit.
+We have benchmarked performance of two GPU implementations (MadIPM for \glspl*{lp} and MadNLP for \glspl*{nlp}) and their performance is compared against the CPU solvers (Gurobi for \gls*{lp} and Ipopt for \glspl*{nlp}). MadNLP is configured with cuDSS as the linear solver, while Ipopt is configured with either Ma27 (for pglib-opf) or Ma57 (for COPS) that uses OpenBLAS as the BLAS and LAPACK backends. All the nonlinear models are implemented with ExaModels (either running on GPU or CPU). For \glspl*{lp}, we have performed the benchmark on the MIPLIB 2017 benchmark library \cite{gleixnerMIPLIB2017Datadriven2021} and for \glspl*{nlp}, we have performed the benchmark on the pglib-opf \cite{babaeinejadsarookolaeePowerGridLibrary2021} and the COPS library \cite{dolanBenchmarkingOptimizationSoftware2001}. The results are summarized in \Cref{tab:results} and more details of the numerical experiments can be found in \Cref{apx:num}. When reporting the solve time for multiple instances, we represent them using the shifted geometric mean: $(\prod_{i=1}^n (t_i + \Delta))^{1/n} - \Delta$, where $t_i$ is the solve time for the $i$-th instance and $\Delta$ is the shift factor. We denote this metric with $\Delta = 10$ as SGM10. If an instance is unsolved, its solving time is set to the corresponding time limit. All the numerical results are shown in \Cref{tab:results}. The numerical results can be reproduced with the source code and Manifest file available at \url{https://github.com/MadNLP/neurips2025-mathprog-on-gpu}. The numerical results can be reproduced with the source code and Manifest file available at \url{https://github.com/MadNLP/neurips2025-mathprog-on-gpu}. The benchmark was performed on a workstation with two Intel(R) Xeon(R) Platinum 6130 CPUs @ 2.10GHz, two Quadro GV 100 GPUs, and 128 GB of RAM. 
+
+\begin{table} 
+  \footnotesize
+  \input{table.tex}
+  \caption{Solve times of CPU solvers (Gurobi and Ipopt) and GPU solvers (MadIPM and MadNLP) in SGM10 (secs; with 900 sec max wall time)  on MIPLIB (\glspl*{lp}), pglib-opf (31 small, 24 medium, and 11 large \glspl*{nlp}), and COPS (13 small, 16 medium, and 16 large \glspl*{nlp})  instances.}\label{tab:results} 
+\end{table}
 
 
 
-\subsection{Linear Programming}
-We have performed the benchmark on the MIPLIB 2017 benchmark library \cite{gleixnerMIPLIB2017Datadriven2021}.
-Two solvers, MadIPM running on GPU and Gurobi running on CPU, are compared.
-MadIPM solves the primal-dual condensed KKT system \cref{eqn:augmentedKKT} using cuDSS as the linear solver, while Gurobi uses its internal barrier method implementation with a custom sparse symmetric indefinite direct solver.
 
 \paragraph{MIPLIB}
-% \begin{table}[t]
-%   \centering\footnotesize
-%   \caption{Solve time in seconds and SGM10 on instances of MIPLIB without presolve}
-% \end{table}
-\begin{center}
-  \begin{tabular}{|c|c|cc|cc|cc|cc|}
-    \hline
-    \multirow{ 3}{*}{Tol} & \multirow{ 3}{*}{Solver} & \multicolumn{2}{c|}{\textbf{Small} (0)}& \multicolumn{2}{c|}{\textbf{Medium} (0)}& \multicolumn{2}{c|}{\textbf{Large} (4)}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (4)}}\\
-                          && \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}& \multicolumn{2}{c|}{(900 sec max)}&&\\
-                          &&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
-    \hline
-    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 0 & -9.0 & 0 & -9.0 & 2 & 1.2854801994313352 & 2 & 1.2854801994313352  \\
-                          & Ipopt (cpu) & 0 & -9.0 & 0 & -9.0 & 2 & 13.338996752053031 & 2 & 13.338996752053031  \\
 
-    \hline
-    \multirow{2}{*}{$10^{-4}$} & MadNLP (gpu) & 0 & -9.0 & 0 & -9.0 & 2 & 1.8189292455720203 & 2 & 1.8189292455720203  \\
-                          & Ipopt (cpu) & 0 & -9.0 & 0 & -9.0 & 2 & 15.189445328247583 & 2 & 15.189445328247583  \\
 
-    \hline
-  \end{tabular}
-\end{center}
 
-\subsection{Nonlinear programming}
-We now compare the performance of MadNLP running on GPU and Ipopt running on CPU. MadNLP solves the primal condensed KKT system \cref{eqn:kkt_primal}, while Ipopt solves the augmented KKT system \cref{eqn:augmentedKKT}. The solver performance is benchmarked against the pglib-opf benchmark suite \cite{babaeinejadsarookolaeePowerGridLibrary2021} and the COPS benchmark suite \cite{dolanBenchmarkingOptimizationSoftware2001}. For both solvers, the \gls*{nlp} function callbacks are provided by ExaModels.jl (either running on GPU or CPU). MadNLP is configured with cuDSS as the linear solver, while Ipopt is configured with either Ma27 (for pglib-opf) or Ma57 (for COPS). OpenBLAS is used as the BLAS and LAPACK backends inside Ipopt and HSL linear solvers.
-
-\paragraph{AC Optimal Power Flow}
-The results are summarized in the table below:
-\begin{center}
-  \footnotesize
-  \input{opf.tex}
-\end{center}
+\paragraph{PGLIB-OPF}
 The results indicate that the GPU solver can achieve more than a 10x speed-up on average for the 11 largest instances (with more than $2^{20}$ non-zeros) when the problem is solved up to low precision. The speed-up is relatively small for medium-sized instances, and there is practically no advantage for small instances. This is expected, as the GPU solver is designed to handle large-scale problems, and small-scale problems cannot fully utilize the available parallel cores. In such cases, the overhead related to parallelism, such as task scheduling and thread launching, dominates the computation time, rather than actual performance gains. For high precision, however, the GPU solver is not able to achieve the same level of performance as the CPU solver, which is expected, as the condensed system utilized within the GPU solvers must handle worse conditioning in practice. One can see that in total, the GPU solver converges in 2 fewer instances than the CPU solver. However, for the converged instances, the speed-up is still substantial (3x speed-up in SGM 10 on large instances).
 
 % \begin{table}[t]
@@ -409,11 +386,6 @@ The results indicate that the GPU solver can achieve more than a 10x speed-up on
 
 
 \paragraph{COPS Benchmark}
-The results are summarized in the table below:
-\begin{center}
-  \footnotesize
-  \input{cops.tex}
-\end{center}
 The results are largely similar to those of the pglib-opf benchmark, but the speed-up is more pronounced in these instances, as the COPS benchmark library is designed to be scalable~\cite{dolanBenchmarkingOptimizationSoftware2001} (thus exhibiting a highly regular structure, which provides more opportunities for exploiting parallelism). Again, for large instances, one can achieve more than a 10x speed-up on average. The speed-up is also substantial for high-precision solves, although the speed-up factor is smaller overall.
 
 
@@ -439,8 +411,8 @@ We have presented a current landscape of GPU-accelerated second-order optimizati
 
 \appendix
 
-\section{Technical Appendices and Supplementary Material}
-Technical appendices with additional results, figures, graphs and proofs may be submitted with the paper submission before the full submission deadline (see above), or as a separate PDF in the ZIP file below before the supplementary material deadline. There is no page limit for the technical appendices.
+\section{More Details on Numerical Results}\label{apx:num}
+% Technical appendices with additional results, figures, graphs and proofs may be submitted with the paper submission before the full submission deadline (see above), or as a separate PDF in the ZIP file below before the supplementary material deadline. There is no page limit for the technical appendices.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

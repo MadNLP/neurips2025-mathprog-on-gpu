@@ -1,0 +1,30 @@
+\begin{tabular}{|c|c|c|cc|cc|cc|cc|}
+  \hline
+  &\multirow{ 3}{*}{\bfseries Tol} & \multirow{ 3}{*}{\bfseries Solver} & \multicolumn{2}{c|}{\textbf{Small}}& \multicolumn{2}{c|}{\textbf{Medium}}& \multicolumn{2}{c|}{\textbf{Large}}& \multicolumn{2}{c|}{\multirow{2}{*}{\textbf{Total} (66)}}\\
+  &&& \multicolumn{2}{c|}{nnz$<2^{18}$}& \multicolumn{2}{c|}{$2^{18}\leq$nnz$<2^{20}$}& \multicolumn{2}{c|}{$2^{20}\leq$ nnz}&&\\
+  &&&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
+  \hline\hline
+  \multirow{4}{*}{\rotatebox{90}{\bfseries MIPLIB}}&\multirow{2}{*}{1e-4} & MadIPM & 31 & 0.4166 & 24 & 2.6380 & 11 & 3.7040 & 66 & 1.6979  \\
+  && Gurobi & 31 & 0.3970 & 24 & 5.0697 & 11 & 38.5053 & 66 & 5.3817  \\
+  \cline{2-11}
+  &\multirow{2}{*}{1e-8} & MadNLP & 30 & 2.5037 & 24 & 4.6016 & 10 & 12.8040 & 64 & 4.6228  \\
+  && Ipopt & 31 & 0.5100 & 24 & 5.4292 & 11 & 37.7818 & 66 & 5.5541  \\
+  \hline\hline
+  \multirow{4}{*}{\rotatebox{90}{\bfseries OPF}}&\multirow{2}{*}{1e-4} & MadNLP & 31 & 0.4166 & 24 & 2.6380 & 11 & 3.7040 & 66 & 1.6979  \\
+  && Ipopt & 31 & 0.3970 & 24 & 5.0697 & 11 & 38.5053 & 66 & 5.3817  \\
+  \cline{2-11}
+  &\multirow{2}{*}{1e-8} & MadNLP & 30 & 2.5037 & 24 & 4.6016 & 10 & 12.8040 & 64 & 4.6228  \\
+  && Ipopt & 31 & 0.5100 & 24 & 5.4292 & 11 & 37.7818 & 66 & 5.5541  \\
+  \hline\hline
+  \multirow{4}{*}{\rotatebox{90}{\bfseries COPS}}&\multirow{2}{*}{1e-4} & MadNLP & 13 & 0.8665 & 15 & 4.8665 & 16 & 3.8194 & 44 & 3.2314  \\
+  && Ipopt & 13 & 5.2315 & 15 & 15.9701 & 15 & 45.8411 & 43 & 19.2243  \\
+  \cline{2-11}
+  &\multirow{2}{*}{1e-8} & MadNLP & 13 & 0.8575 & 16 & 1.5572 & 16 & 8.3549 & 45 & 3.3797  \\
+  && Ipopt & 13 & 5.9413 & 15 & 17.6758 & 15 & 40.8639 & 43 & 19.2999  \\ 
+  \hline
+\end{tabular}
+
+%%% Local Variables:
+%%% mode: LaTeX
+%%% TeX-master: "main"
+%%% End:
