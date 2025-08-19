@@ -199,14 +199,13 @@ We shall discuss both \gls*{lp} ($f$ and $g$ are affine) and \gls*{nlp} ($f$ and
 
 Despite advances in general-purpose GPU computing, state-of-the-art mathematical programming solvers have not widely adopted these techniques. GPUs excel in repetitive computations on large data sets, such as dense matrix multiplication in AI model training. However, many mathematical programming problems in classical application areas are sparse, lack a uniform memory layout, and therefore do not benefit from the same kind of parallelism as in dense linear algebra. As a result, integrating GPUs into mathematical programming solvers poses greater challenges and often necessitates substantial modifications to the overall algorithm.
 
-First-order algorithms have emerged as a suitable algorithm class for GPU implementation. As these algorithms typically rely on sparse matrix-vector multiplication and simple vector operations, implementing GPU acceleration is less likely obstructed by the unavailability of low-level kernels. Recent successful implementations include cuPDLP \cite{luCuPDLPCStrengthenedImplementation2024,luCuPDLPFurtherEnhanced2025}, cuOSQP \cite{schubigerGPUAccelerationADMM2020}, and cuOPT \cite{NVIDIACuopt2025}. However, the linear convergence rate of first-order methods restricts their effectiveness in applications requiring fast convergence, prompting the exploration of second-order solvers.
+First-order algorithms have emerged as a suitable algorithm class for GPU implementation. As these algorithms typically rely on sparse matrix-vector multiplication and simple vector operations, implementing GPU acceleration is less likely obstructed by the unavailability of low-level kernels. Recent successful implementations include cuPDLP \cite{luCuPDLPCStrengthenedImplementation2024,luCuPDLPFurtherEnhanced2025}, cuOSQP \cite{schubigerGPUAccelerationADMM2020}, and cuOPT \cite{NVIDIACuopt2025}. However, the linear convergence rate of first-order methods restricts their effectiveness in applications requiring fast convergence, prompting the exploration of second-order alternatives.
 
-The development of second-order solvers heavily depends on \emph{direct linear solvers}. Specifically, when using \gls*{ipm}, each barrier iteration necessitates solving a linear system, known as the \gls*{kkt} system. These \gls*{kkt} systems become highly ill-conditioned near the solution, which makes the use of iterative linear solvers, such as preconditioned Krylov methods, ineffective in most cases. The issue is exacerbated in nonconvex settings, where KKT systems lack \gls*{sqd} structure. For years, the advancement of GPU-accelerated second-order solvers has been limited by the absence of robust and efficient direct linear solvers for GPUs.
+Second-order solvers inherently rely on \emph{direct linear solvers}. For example, within \gls*{ipm}, each barrier iteration necessitates solving a linear system known as the \gls*{kkt} system. These systems become highly ill-conditioned near the solution, which makes the use of iterative linear solvers, such as preconditioned Krylov methods, ineffective in most cases. The issue is exacerbated in nonconvex settings, where KKT systems lack \gls*{sqd} structure unless aggressive regularization is used. For years, the advancement of GPU-accelerated second-order solvers has been limited by the absence of robust and efficient direct linear solvers for GPUs.
 
+This status quo has changed when NVIDIA released cuDSS, a direct sparse solver library for GPUs, which provides Cholesky and LDL$^\top$ factorization capabilities. While it currently lacks the LBL$^\top$ factorization capabilities commonly used for \gls*{nlp} solvers, its LDL$^\top$ and Cholesky functionalities are sufficient for implementing modified versions of the \gls*{ipm}. Consequently, cuDSS has spurred advances in GPU-accelerated second-order solvers, with several, such as MadNLP \cite{shinAcceleratingOptimalPower2024} and Clarabel \cite{goulartClarabelInteriorpointSolver2024}, integrating it and achieving significant speedups on large-scale instances \cite{shinNVIDIACuDSSLibrary2024,shinAcceleratingOptimalPower2024,pacaudCondensedspaceMethodsNonlinear2024,shinScalableMultiPeriodAC2024,pacaudGPUacceleratedDynamicNonlinear2024}.
 
-Recently, NVIDIA released cuDSS, a direct sparse solver library for GPUs, which provides Cholesky and LDL$^\top$ factorization capabilities, essential for many second-order solvers. While it currently lacks the LDL$^\top$ factorization capabilities commonly used for \gls*{nlp} solvers, its LDL$^\top$ and Cholesky functionalities are sufficient for implementing modified versions of the \gls*{ipm}. Consequently, cuDSS has spurred advances in GPU-accelerated second-order solvers, with several, such as MadNLP \cite{shinAcceleratingOptimalPower2024} and Clarabel \cite{goulartClarabelInteriorpointSolver2024}, integrating it and achieving significant speedups on large-scale instances.
-
-This paper aims to provide an overview of the current state of the art in the implementation of GPU-accelerated second-order optimization solvers, while focusing on the following aspects: (i) We focus on the \gls*{ipm} as the primary mechanism to handle inequality constraints, as the alternative paradigm, active-set methods, are widely accepted to be less scalable \cite{nocedalNumericalOptimization2006}. (ii) We focus on solving KKT systems, which present more challenges. Other components like barrier parameter tuning and line search can be straightforwardly ported to GPUs using low-level kernels through \texttt{map} or \texttt{reduce} operations. (iii) We focus on NVIDIA GPUs and their software stack, because as of now, NVIDIA and CUDA provide the most mature direct sparse solver capabilities. Due to space constraints, we do not cover the hybrid \gls*{kkt} strategy \cite{regevHyKKTHybridDirectiterative2023}, the reduced-space methods \cite{pacaudAcceleratingCondensedInteriorPoint2023}, and other domain-specific approaches \cite{adabagMPCGPURealTimeNonlinear2024}.
+This paper aims to provide an overview of the current state of the art in the GPU implementation of second-order optimization solvers, while focusing on the following aspects: (i) We focus on the \gls*{ipm} as the primary mechanism to handle inequality constraints, as the alternative paradigm, active-set methods, are widely accepted to be less scalable \cite{nocedalNumericalOptimization2006}. (ii) We focus on solving KKT systems, which present more challenges. Other components like barrier parameter tuning and line search can be straightforwardly ported to GPUs using low-level kernels through \texttt{map} or \texttt{reduce} operations. (iii) We focus on NVIDIA GPUs and their software stack, because as of now, NVIDIA and CUDA provide the most mature direct sparse solver capabilities. (iv) Due to page limits, we do not cover the hybrid \gls*{kkt} strategy \cite{regevHyKKTHybridDirectiterative2023}, the reduced-space methods \cite{pacaudAcceleratingCondensedInteriorPoint2023}, and other domain-specific approaches \cite{adabagMPCGPURealTimeNonlinear2024}.
 
 
 
@@ -215,44 +214,42 @@ This paper aims to provide an overview of the current state of the art in the im
 
 
 \section{Direct Linear Solvers for Optimization}\label{eqn:linear}
-This section provides an overview of the direct linear algebra methods frequently employed in second-order methods and discusses the rationale behind the development of pivoting-free \gls*{ipm}.
+This section provides an overview of the direct linear algebra methods frequently employed in second-order methods and discusses the rationale behind the development of \emph{pivoting-free \gls*{ipm}}.
 
 
-\paragraph{LDL$^\top$ factorization.}
-LDL$^\top$ factorization, a signed variant of Cholesky decomposition, decomposes a matrix $A$ into $LDL^\top$, where $L$ is lower triangular and $D$ is diagonal. LDL$^\top$ factorization can be utilized to solve $Ax = b$, where the solution is obtained by first solving the lower triangular system $Ly = b$, followed by diagonal scaling with $D^{-1}$ and the solution of the upper triangular system $L^\top x = y$. A nice property of LDL$^\top$ factorization is that, provided that the matrix $A$ is \gls*{sqd}, LDL$^\top$ factorization exists for any given permutation of the matrix (so-called strongly factorizable) \cite{vanderbeiSymmetricQuasidefiniteMatrices1995}. Many of the saddle point systems encountered in mathematical programming solvers are \gls*{sqd}, nearly \gls*{sqd} (can become \gls*{sqd} with infinitesimal regularization), or can be reduced into \gls*{spd} systems. Thus, LDL$^\top$ factorization is often used within \gls*{ipm} solvers.
+\paragraph{LDL$^\top$ factorization}
+LDL$^\top$ factorization, a signed variant of Cholesky decomposition, decomposes a matrix $A$ into $LDL^\top$, where $L$ is lower triangular and $D$ is diagonal (for sparse systems, fill-in reducing permutation (reordering) $P$ must be employed, resulting in the permuted decomposition $A = P L D L^\top P^\top$). This method can be utilized to solve $Ax = b$, where the solution is obtained by first solving the lower triangular system $Ly = b$, followed by diagonal scaling with $D^{-1}$ and the solution of the upper triangular system $L^\top x = y$. A nice property of LDL$^\top$ factorization is that, provided that the matrix $A$ is \gls*{sqd}, LDL$^\top$ factorization exists for any given permutation of the matrix (so-called strongly factorizable) \cite{vanderbeiSymmetricQuasidefiniteMatrices1995}. Many of the saddle point systems encountered in mathematical programming solvers are \gls*{sqd}, nearly \gls*{sqd} (can become \gls*{sqd} with infinitesimal regularization), or can be converted to \gls*{sqd} systems. 
 
-For sparse systems, fill-in reducing permutation (reordering) $P$ must be employed, resulting in the permuted decomposition $A = P L D L^\top P^\top$. Although algorithms to compute fill-in-reducing reordering (e.g., minimum degree ordering \cite{amestoyApproximateMinimumDegree1996} or nested dissection \cite{karypisMETISSoftwarePackage1997}) are serial in nature (e.g., cuDSS performs this operation on CPUs), the reordering can be computed only once and can be reused for multiple factorization calls; thus, the overhead can be amortized over multiple calls.
 
-\paragraph{Numerical Pivoting.}
 
-For general indefinite matrices without \gls*{sqd} structure, LDL$^\top$ factorization procedure is not guaranteed to be numerically stable, and dynamic numerical pivoting is commonly employed to enhance the numerical stability of the factorization process at the cost of leading to additional fill-in (thus memory reallocation) and breaking memory "design." Dynamic numerical pivoting procedures examine a limited set of candidate pivots, typically within a row and column, and select the most suitable one according to a stability criterion, such as the largest absolute value \cite{schenkFASTFACTORIZATIONPIVOTING}. Three widely used dynamic pivoting strategies are Bunch–Kaufman, rook, and delayed pivoting, which select $1 \times 1$ or $2 \times 2$ pivots, although other variants and hybrid approaches also exist \cite{}. The variant of LDL$^\top$ with $2 \times 2$ pivots is often called LBL$^\top$ factorization. If none of these methods succeed, the pivot is perturbed by a small value (typically $\mathbf{u}\|A\|_1$ for some small $\mathbf{u} > 0$) \cite{schenkFASTFACTORIZATIONPIVOTING}. This procedure introduces numerical error, which must be corrected through iterative refinements.
+\paragraph{Numerical Pivoting}
 
-\paragraph{State-of-the-art GPU solvers.}
-As described above, the numerical pivoting procedure is crucial to ensure numerical stability of direct linear solvers, but these strategies are quite sophisticated and are non-trivial to implement on GPUs. Moreover, since coarse-grained tree-level parallelism must be employed to exploit GPU parallelism, the numerical pivoting should be applied in such a way that does not break the parallelism at the elimination tree level, which further complicates the implementation. Implementing numerical pivoting has been recognized as one of the most challenging components of the direct linear solver implementation on GPUs \cite{swirydowiczLinearSolversPower2022}. The current version of cuDSS have partial pivoting capabilities, but it does not support the LBL$^\top$ factorization like in CPU solvers.
+For general indefinite matrices without \gls*{sqd} structure (e.g., augmented systems \cite{wachterImplementationInteriorpointFilter2006} arising from \glspl*{nlp}), LDL$^\top$ factorization procedure is not guaranteed to be numerically stable, and dynamic numerical pivoting is commonly employed to enhance the numerical stability of the factorization process. However, this requires deviating from the fill-in reducing reordering computed a priori, thus leading to additional fill-in (thus memory reallocation) and breaking memory "design." Dynamic numerical pivoting procedures examine a limited set of candidate pivots, typically within a row and column, and select the most suitable one according to a stability criterion, such as the largest absolute value \cite{schenkFASTFACTORIZATIONPIVOTING}. Three widely used dynamic pivoting strategies are Bunch–Kaufman, rook, and delayed pivoting, which select $1 \times 1$ or $2 \times 2$ pivots, although other variants and hybrid approaches also exist \cite{}. The variant of LDL$^\top$ with $2 \times 2$ pivots is often called LBL$^\top$ factorization. If none of these methods succeed, the pivot is perturbed by a small value (typically $\mathbf{u}\|A\|_1$ for some small $\mathbf{u} > 0$) \cite{schenkFASTFACTORIZATIONPIVOTING}. This procedure introduces numerical error, which must be corrected through iterative refinements.
 
-On the other hand, when the matrix is \gls*{sqd}, LDL$^\top$ factorization on GPU can achieve a high degree of robustness even without numerical pivoting \cite{vanderbeiSymmetricQuasidefiniteMatrices1995}. Furthermore, these methods can effectively utilize parallelism; it is known that the factorization process is oftentimes highly parallelizable, while the triangular factorization tends to be less so but can still benefit from GPU parallelism \cite{naumovParallelSolutionSparse}. Therefore, to fully exploit the benefits of existing GPU direct solvers, it is crucial to ensure that \emph{the \gls*{kkt} system can be solved without pivoting}, which motivates the development of \emph{pivoting-free interior-point methods}.
+\paragraph{State-of-the-art GPU solvers}
+As described above, the numerical pivoting procedure is crucial to ensure numerical stability of direct linear solvers. However, implementing numerical pivoting has been recognized as one of the most challenging components of the direct linear solver implementation on GPUs, as  these strategies are serial in nature \cite{swirydowiczLinearSolversPower2022}. Moreover, since coarse-grained tree-level parallelism must be employed to exploit GPU parallelism, the numerical pivoting should be applied in such a way that does not break the parallelism at the elimination tree level, which further complicates the implementation. The current version of cuDSS have partial pivoting capabilities, but it does not support the LBL$^\top$ factorization like in CPU solvers \cite{nvidiaNVIDIACuDSSPreview}.
+
+On the other hand, when the matrix is \gls*{sqd}, LDL$^\top$ factorization on GPU can achieve a high degree of robustness even without numerical pivoting \cite{vanderbeiSymmetricQuasidefiniteMatrices1995}. Furthermore, these methods can effectively utilize parallelism; it is known that the factorization process is oftentimes highly parallelizable, while the triangular factorization tends to be less so but can still benefit from GPU parallelism \cite{naumovParallelSolutionSparse}. Although algorithms to compute fill-in-reducing reordering (e.g., minimum degree ordering \cite{amestoyApproximateMinimumDegree1996} or nested dissection \cite{karypisMETISSoftwarePackage1997}) are serial in nature (e.g., cuDSS performs this operation on CPUs), the reordering can be computed only once and can be reused for multiple factorization calls; thus, the overhead can be amortized over multiple calls. Therefore, to fully exploit the benefits of existing GPU direct solvers, it is crucial to ensure that \emph{the \gls*{kkt} system can be solved without pivoting}, which motivates the development of \emph{pivoting-free interior-point methods}. Specifically, this can be achieved by always converting the \gls*{kkt} systems into an \gls*{sqd} form.
 
 
 
 \section{Pivoting-Free Interior-Point Methods}\label{eqn:ipm}
 We now explain how the \gls*{ipm} can be adapted to avoid numerical pivoting, thus enabling the use of existing GPU direct solvers. We first provide a brief overview of the \gls*{ipm} and its KKT system formulation, followed by a discussion of the condensed KKT systems.
 
-\paragraph{Interior-Point Methods and KKT Systems.}
-The \gls*{ipm} is a class of optimization algorithms designed to solve inequality-constrained optimization problems. These methods transform \cref{eqn:opt} into a sequence of log-barrier subproblems:
+\paragraph{Interior-Point Methods and KKT Systems}
+The \gls*{ipm} is a class of optimization algorithms designed to solve inequality-constrained optimization problems \cite{nocedalNumericalOptimization2006}. These methods transform \cref{eqn:opt} into a sequence of log-barrier subproblems:
 \begin{align}\label{eqn:barrier}
   \min_{x,s} \; & f(x) - \mu \sum_{i=1}^m \log(s_i) \quad \text{s.t.} \; g(x) - s = 0,
 \end{align}
 where $s \in \mathbb{R}^m$ denotes the slack variable, and $\mu > 0$ is the barrier parameter, which is gradually reduced to zero.
-The KKT conditions for \cref{eqn:barrier} are given by:
+\Gls*{ipm} attempts to iteratively solve the \gls*{kkt} conditions for \cref{eqn:barrier}:
 \begin{align}\label{eqn:kkt}
   \nabla f(x) - \nabla g(x)^\top \lambda = 0, \quad
   \Lambda S e = \mu e, \quad
   g(x) - s = 0,
 \end{align}
-where $\lambda \in \mathbb{R}^m$ is the Lagrange multipliers, $S = \text{diag}(s)$, $\Lambda = \text{diag}(\lambda)$, and $e$ is the vector of ones.
-
-
-\Gls*{ipm} attempts to iteratively solve \cref{eqn:kkt} using Newton's method. At each iteration, we obtain the search direction by solving the following (regularized) KKT system:
+where $\lambda \in \mathbb{R}^m$ is the Lagrange multipliers, $S = \text{diag}(s)$, $\Lambda = \text{diag}(\lambda)$, and $e$ is the vector of ones,
+using Newton's method. At each iteration, we obtain the search direction by solving the following (regularized) KKT system:
 \begin{align}\label{eqn:kkt_system}
   \begin{bmatrix}
     \nabla^2_{x x} \mathcal{L}(x,\lambda) + \delta_p I & & \nabla g(x)^\top  \\
@@ -270,15 +267,20 @@ where $\lambda \in \mathbb{R}^m$ is the Lagrange multipliers, $S = \text{diag}(s
     g(x) - s\\
   \end{bmatrix},
 \end{align}
-where $\mathcal{L}(x,\lambda,s) := f(x) - \lambda^\top (g(x)-s)$ is the Lagrangian function and $\delta_p, \delta_d \geq 0$ are primal and dual regularization parameters employed by the \gls*{ipm} solver to ensure the well-posedness of \cref{eqn:kkt_system} and the descent property of the Newton step.
+where $\mathcal{L}(x,\lambda,s) := f(x) - \lambda^\top (g(x)-s)$ is the Lagrangian function and $\delta_p, \delta_d \geq 0$ are primal and dual regularization parameters.
 
-\paragraph{Condensed KKT systems.}
-While \cref{eqn:kkt_system} is directly addressed by some solvers (e.g., Ipopt \cite{wachterImplementationInteriorpointFilter2006}), the block structure in \cref{eqn:augmentedKKT} can be reduced in several ways. In the context of GPU implementation, these reduction methods offer advantages by either making the system smaller and denser—thereby providing more opportunities for exploiting parallelism—or by enabling enabling the pivoting-free implementation. Below, we outline such elimination strategies.
+\paragraph{Regularization}
+The regularization parameters are used to  ensure (i) the well-posedness of \cref{eqn:kkt_system} and/or (ii) the descent property of the Newton step.
+For convex problems, infinitesimal $\delta_p, \delta_d > 0$ ensures the \gls*{sqd} condition for the matrix in \eqref{eqn:kkt_system}, thus ensuring strong factorizability. This idea has led to several robust \gls{ipm} implementations on CPUs~\cite{friedlanderPrimalDualRegularized2012}. For nonconvex cases, primal-dual regularization provides a mechanism to not only impose the \gls*{sqd} structure, but also to ensure that the Newton step is a descent direction for a merit function. Traditional implementations of \gls{ipm} use a procedure known as \emph{inertia correction}, where the regularization parameters $(\delta_p, \delta_d)$ are increased until the number of positive, negative, and zero eigenvalues (referred to as inertia, available as a byproduct of the LDL$^\top$ and LBL$^\top$ factorizations) equals $(n+m, m, 0)$.
+Excessive regularization is not desirable, as it can potentially distort the step direction, leading to slow convergence.
 
+\paragraph{Condensed KKT systems}
+While \cref{eqn:kkt_system} is directly addressed by some solvers (e.g., Ipopt \cite{wachterImplementationInteriorpointFilter2006}), it can be further \emph{condensed}, leading to so-called \emph{condensed \gls*{kkt} systems}. In the context of GPU implementation, condenstation offers advantages either (i) by making the system smaller and denser—thereby providing more opportunities for parallelism—or (ii) by enforcing the \gls*{sqd} structure---thereby enabling the pivoting-free implementation. However, as an exchange, depending on the sparsity pattern, the density of the condensed system can increase significantly, which can lead to increased memory requirements and computational overhead, and since the eliminated blocks are oftentimes extremely ill-conditioned as the solution approach the solution, the resulting condensed system can also become ill-conditioned, which in turn, can compromise the accuracy of the solution. 
 
+Below, we outline such condenstation strategies. Note that these analyses are subject to change if equality constraints are present, but one can convert equalities  into inequalities by introducing pairs of inequalities or slightly relaxing the equality. 
 \begin{itemize}[leftmargin=*,itemsep=0pt,parsep=0pt,partopsep=0pt]
-\item \textbf{Primal-dual condensed system.}
-As the $(2,2)$-block in \cref{eqn:kkt_system} is always invertible due to the nature of the \gls*{ipm}, we can eliminate the slack variable $s$ to obtain the following block $2\times 2$ system:
+\item \textit{Primal-dual condensed system}:
+As the $(2,2)$-block $S^{-1}\Lambda$ in \cref{eqn:kkt_system} is always invertible due to the nature of the \gls*{ipm}, we can eliminate it to obtain the following block $2\times 2$ system:
 \begin{equation}\label{eqn:augmentedKKT}
   \begin{bmatrix}
     \nabla^2_{x x} \mathcal{L}(x,\lambda) + \delta_p I & \nabla g(x)^\top \\
@@ -293,10 +295,10 @@ As the $(2,2)$-block in \cref{eqn:kkt_system} is always invertible due to the na
     g(x) - \mu \Lambda^{-1} e
   \end{bmatrix}.
 \end{equation}
-The slack step $d_s$ can be recovered once the primal and dual steps $d_x$ and $d_\lambda$ are computed. This elimination does not incur significant computational overhead, and the number of non-zero entries in the resulting system is not increased. However, since $\Lambda^{-1} S$ can be arbitrarily ill-conditioned, the numerical stability of the resulting system can be compromised.
+This elimination does not incur significant computational overhead, and the number of non-zero entries in the resulting system is not increased. 
 
-\item \textbf{Primal condensed system.}
-The block $\delta_d I + \Lambda^{-1}S$ within \eqref{eqn:augmentedKKT} is always invertible; their elimination gives rise to a \emph{primal condensed KKT system}:
+\item \textit{Primal condensed system}:
+The $\delta_d I + \Lambda^{-1}S$ block within \eqref{eqn:augmentedKKT} is always invertible, and its elimination gives rise to a \emph{primal condensed KKT system}:
 \begin{align}\label{eqn:kkt_primal}
   % \left(\nabla^2 \mathcal{L}(x,\lambda) + \delta_p I + \nabla g(x)^\top \left(\delta_d I + (S^{-1}\Lambda + \delta_p I)^{-1}\right) \nabla g(x)\right)
   % \begin{bmatrix}
@@ -309,12 +311,12 @@ The block $\delta_d I + \Lambda^{-1}S$ within \eqref{eqn:augmentedKKT} is always
 \end{align}
 with $r_p$ an appropriate right-hand-side derives from \eqref{eqn:augmentedKKT}.
 Compared to \cref{eqn:augmentedKKT}, the system size is further reduced.
-However, since the Jacobian $\nabla g(x)$ can have dense rows, the condensed system can become arbitrarily dense, potentially causing serious computational overhead. F
-urthermore, this elimination strategy suffers from the same potential ill-conditioning issue as in \cref{eqn:augmentedKKT}.
-However, this condensation has the key advantage for \gls*{nlp}, as this system becomes \gls*{spd} under the application of primal-dual regularization $(\delta_p, \delta_p)$ chosen based on the standard inertia correction procedure \cite{shinAcceleratingOptimalPower2024}.
-The system is always Cholesky factorizable with static pivoting, thus allowing the pivoting-free implementation of the \gls*{ipm} for \glspl*{nlp}.
+This condensation has the key advantage for \glspl*{nlp}, as this system becomes \gls*{spd} under the application of primal-dual regularization $(\delta_p, \delta_p)$ chosen based on the standard inertia correction procedure \cite{shinAcceleratingOptimalPower2024}.
+However, since the Jacobian $\nabla g(x)$ can have dense rows, the condensed system can become arbitrarily dense, potentially causing serious computational overhead (in such a case, a sepcialized linear solver needs to be used based on Woodbury formula).
 
-\item \textbf{Dual condensed system.}
+
+
+\item \textit{Dual condensed system}:
 When the problem is strongly convex or when the regularization parameter $\delta_p$ is sufficiently large, the $\nabla^2 \mathcal{L}(x,\lambda) + \delta_p I$ block is invertible, and by eliminating the this block, we obtain the \emph{dual condensed KKT system}:
 \begin{align}\label{eqn:kkt_dual}
   \left(\delta_d I + \Lambda^{-1}S + \nabla g(x)\left(\nabla_{x x}^2 \mathcal{L}(x,\lambda) + \delta_p I\right)^{-1} \nabla g(x)^\top\right)
@@ -327,33 +329,22 @@ When the problem is strongly convex or when the regularization parameter $\delta
   % \end{bmatrix},
 \end{align}
 with $r_d$ an appropriate right-hand-side.
-In the context of linear programming, this system is often called \emph{normal equations}.
-Similarly to the primal condensed system, this system can be arbitrarily dense, and thus, this elimination needs to be used with caution. Assuming that the primal Hessian is \gls*{spd}, this system is always \gls*{spd}, thus is Cholesky factorizable with static pivoting.
-For linear program, the dual condensed KKT system~\cref{eqn:kkt_dual} is often used
-by default as the diagonal block $\nabla^2_{x x} \mathcal{L}(x, \lambda) + \delta_p I$ is easy
-to invert in that case. Customized implementation of the Cholesky factorization
-  are used to handle dense columns in the Jacobian $\nabla g(x)$ \cite{}.
+In the context of linear programming, this is always applicable when $\delta_p>0$, and this system is often called \emph{normal equations} and is often used by default as the diagonal block $\nabla^2_{x x} \mathcal{L}(x, \lambda) + \delta_p I$ is easy to invert.
+Assuming that the primal Hessian is \gls*{spd}, this system is always \gls*{spd}.
+Similarly to the primal condensed system, this system can be arbitrarily dense, and thus, this elimination needs to be used with caution.
 \end{itemize}
 
 
-\paragraph{Regularization of KKT systems.}
-We now explain how the $(\delta_p, \delta_d)$ parameters are chosen.
-% As seen before, the algorithm tunes the regularization parameters $\delta_p$
-% and $\delta_p$ to ensure the system \cref{eqn:augmentedKKT} is well-posed.
+\paragraph{Pivoting-Free IPM}
+We now explain which KKT system formulation among \cref{eqn:kkt_system,eqn:augmentedKKT,eqn:kkt_dual,eqn:kkt_primal} is suitable for pivoting-free \gls*{ipm} implementations. The key requirement is that the KKT system matrix must be \gls*{sqd} or can be made \gls*{sqd} with infinitesimal regularization $\delta_p, \delta_d > 0$. We explain the conditions for each case below.
 \begin{itemize}[leftmargin=*,itemsep=0pt,parsep=0pt,partopsep=0pt]
-\item \textbf{Convex case}:
-For strongly convex programs, all four formulations \cref{eqn:kkt_system,eqn:augmentedKKT,eqn:kkt_dual,eqn:kkt_primal} are appropriate, allowing one to choose the best option based on the sparsity pattern and degree of ill-conditioning of the KKT system matrix. Even when the problem lacks strong convexity, the system \cref{eqn:augmentedKKT} can become SQD for infinitesimal $(\delta_x, \delta_d) > 0$, thereby becoming strongly factorizable. This idea has led to several robust \gls{ipm} implementations~\cite{friedlanderPrimalDualRegularized2012}.
-  % Reference Friedlander and Orban
-  % This is the approach adopted in MadIPM.
-% For general quadratic programs, \cref{eqn:kkt_primal} is most suitable, though other formulations, such as \cref{eqn:kkt_system,eqn:augmentedKKT,eqn:kkt_dual} can also be used when proper regularization, pivot perturbation, and/or iterative refinement strategies are employed.
-% For strongly convex programs, all four formulations \cref{eqn:kkt_system,eqn:augmentedKKT,eqn:kkt_dual,eqn:kkt_primal} are appropriate, so one may choose the best one based on the sparsity pattern and degree of ill-conditioning of the KKT system matrix.
-\item \textbf{Nonconvex case}:
-%   The case of \gls*{nlp} is different, as the solver has to accomodate
-%   the local nonconvexities in the model.
-For nonconvex problems, primal-dual regularization provides a mechanism to ensure that the Newton step is a descent direction for a merit function. Traditional implementations of \gls{ipm} use a procedure known as \emph{inertia correction}, where the regularization parameters $(\delta_p, \delta_d)$ are increased until the number of positive, negative, and zero eigenvalues (referred to as inertia, available as a byproduct of the LDL$^\top$ and LBL$^\top$ factorizations) of the KKT system matrix in \cref{eqn:kkt_system} equals $(n+m, m, 0)$. This condition is equivalent to the requirement that the primal condensed system \cref{eqn:kkt_primal} is \gls*{spd}. Therefore, ensuring strong factorizability of the primal condensed system \cref{eqn:kkt_primal} does not incur excessive regularization.
-
-% If the problem~\cref{eqn:opt} has additional equality constraints,
-% the equality constraints are relaxed into doubly bounded inequalities with a small gap, called LiftedKKT system strategy.
+\item \textit{Convex case}:
+  For convex programs, all four formulations \cref{eqn:kkt_system,eqn:augmentedKKT,eqn:kkt_dual,eqn:kkt_primal} are appropriate, as any of this system can become SQD for infinitesimal $\delta_p, \delta_d > 0$.
+  Thus, one can choose the best option based on the sparsity pattern and degree of ill-conditioning of the KKT system matrix.  
+\item \textit{Nonconvex case}:
+  For nonconvex problems, the primal condensed system \cref{eqn:kkt_primal} is most suitable as it can be made \gls*{spd} by choosing the primal-dual regularization parameters $(\delta_p, \delta_d)$ simply based on inertia correction (i.e., strong factorizability is ensured without incurring excessive regularization). 
+  The augmented or primal-dual condensed system \cref{eqn:kkt_system,eqn:augmentedKKT}are not suitable because they are not guaranteed to be \gls*{sqd} unless \emph{additionally strong} (beyond what's necessary to ensure descent condition) regularization parameters $(\delta_p, \delta_d)$ are used.
+  Dual condensed system \cref{eqn:kkt_dual} is not suitable either, as the $\nabla^2_{x x} \mathcal{L}(x, \lambda) + \delta_p I$ block is typically not diagonal (due to nonlinear constraints).
 \end{itemize}
 
 
@@ -365,7 +356,7 @@ To achieve this, one can focus on the fact that many practical instances of larg
 \begin{lstlisting}
   objective(c, 100 * (x[i-1]^2 - x[i])^2 + (x[i-1] - 1)^2 for i = 2:N)
 \end{lstlisting}
-which corresponds to the case of $f^o(x; p) = 100(x[p-1]^2 - x[p])^2 + (x[p-1]-1)^2$ and $p=\{2,\cdots,N\}$. This syntax allows the user to inform the modeling system of repeated structures in the model so that later the GPU kernel for derivative evaluation can be generated.
+which corresponds to the case of $f^o(x; p) = 100(x[p-1]^2 - x[p])^2 + (x[p-1]-1)^2$ and $p\in\{2,\cdots,N\}$. This syntax allows the user to inform the modeling system of repeated structures in the model so that later the GPU kernel for derivative evaluation can be generated.
 
 \section{Numerical Results}\label{eqn:num}
 This section provides performance benchmarks for the GPU solvers compared to state-of-the-art CPU solvers. The numerical results can be reproduced with the source code and Manifest file available at \url{https://github.com/MadNLP/neurips2025-mathprog-on-gpu}. The benchmark was performed on a workstation with two Intel(R) Xeon(R) Platinum 6130 CPUs @ 2.10GHz, two Quadro GV 100 GPUs, and 128 GB of RAM. When reporting the solve time for multiple instances, we represent them using the shifted geometric mean: $\left(\prod_{i=1}^n (t_i + \Delta)\right)^{1/n} - \Delta$, where $t_i$ is the solve time for the $i$-th instance and $\Delta$ is the shift factor. We denote this metric with $\Delta = 10$ as SGM10. If an instance is unsolved, its solving time is set to the corresponding time limit.
@@ -403,7 +394,7 @@ MadIPM solves the primal-dual condensed KKT system \cref{eqn:augmentedKKT} using
 \subsection{Nonlinear programming}
 We now compare the performance of MadNLP running on GPU and Ipopt running on CPU. MadNLP solves the primal condensed KKT system \cref{eqn:kkt_primal}, while Ipopt solves the augmented KKT system \cref{eqn:augmentedKKT}. The solver performance is benchmarked against the pglib-opf benchmark suite \cite{babaeinejadsarookolaeePowerGridLibrary2021} and the COPS benchmark suite \cite{dolanBenchmarkingOptimizationSoftware2001}. For both solvers, the \gls*{nlp} function callbacks are provided by ExaModels.jl (either running on GPU or CPU). MadNLP is configured with cuDSS as the linear solver, while Ipopt is configured with either Ma27 (for pglib-opf) or Ma57 (for COPS). OpenBLAS is used as the BLAS and LAPACK backends inside Ipopt and HSL linear solvers.
 
-\paragraph{AC Optimal Power Flow.}
+\paragraph{AC Optimal Power Flow}
 The results are summarized in the table below:
 \begin{center}
   \footnotesize
@@ -417,7 +408,7 @@ The results indicate that the GPU solver can achieve more than a 10x speed-up on
 % \end{table}
 
 
-\paragraph{COPS Benchmark.}
+\paragraph{COPS Benchmark}
 The results are summarized in the table below:
 \begin{center}
   \footnotesize
