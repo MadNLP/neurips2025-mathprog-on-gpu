@@ -155,26 +155,6 @@
   Argonne National Laboratory\\
   Lemont, IL 60439\\
   \texttt{anitescu@mcs.anl.gov}\\
-  % examples of more authors
-  % Coauthor \\
-  % Affiliation \\
-  % Address \\
-  % \texttt{email} \\
-  % \AND
-  % Coauthor \\
-  % Affiliation \\
-  % Address \\
-  % \texttt{email} \\
-  % \And
-  % Coauthor \\
-  % Affiliation \\
-  % Address \\
-  % \texttt{email} \\
-  % \And
-  % Coauthor \\
-  % Affiliation \\
-  % Address \\
-  % \texttt{email} \\
 }
 
 
@@ -210,8 +190,6 @@ This status quo has changed with NVIDIA's release of cuDSS, a direct sparse solv
 
 This paper aims to provide an overview of the current state of the art in the GPU implementation of second-order optimization solvers, while focusing on the following aspects: (i) We focus on the \gls*{ipm} as the primary mechanism to handle inequality constraints, as the alternative paradigm, active-set methods, are widely accepted to be less scalable \cite{nocedalNumericalOptimization2006}. (ii) We focus on solving KKT systems, which present more challenges. Other components like barrier parameter tuning and line search can be straightforwardly ported to GPUs using low-level kernels through \texttt{map} or \texttt{reduce} operations. (iii) We focus on NVIDIA GPUs and their software stack, because as of now, NVIDIA and CUDA provide the most mature direct sparse solver capabilities. (iv) Due to page limits, we do not cover the hybrid \gls*{kkt} strategy \cite{regevHyKKTHybridDirectiterative2023}, the reduced-space methods \cite{pacaudAcceleratingCondensedInteriorPoint2023}, and other domain-specific approaches \cite{adabagMPCGPURealTimeNonlinear2024}.
 
-
-% In the remainder of the paper, we first review the latest GPU-accelerated direct linear solvers and their application in mathematical programming. We then explore different KKT system formulations for \gls*{ipm}s and assess their suitability for GPU implementation. We also discuss approaches for sparse automatic differentiation on GPUs, which is crucial for \gls*{nlp}. Finally, we present numerical results showcasing the scalability—often exceeding 10x speed-ups over leading CPU alternatives, followed by a discussion of current limitations and open questions.
 
 
 \section{Direct Linear Solvers for Optimization}\label{eqn:linear}
@@ -359,23 +337,8 @@ We benchmarked the performance of two GPU implementations (MadIPM for \glspl*{lp
 \paragraph{PGLIB-OPF}
 We have benchmarked the solver performance for solving AC OPF problems based on polar power flow formulations using the approach in \cite{PowerModelsJLOpenSource}. The results in \Cref{tab:results} indicate that the GPU solver can achieve, on average, more than a 10x speed-up for the 11 largest instances (with more than $2^{20}$ non-zeros) when the problems are solved to medium precision. The speed-up is relatively modest for medium-sized instances, and there is practically no advantage for small instances. This is expected, as the GPU solver is designed to handle large-scale problems, and small-scale problems cannot fully utilize the available parallel cores. In such cases, the overhead related to parallelism, such as task scheduling and thread launching, dominates the computation time rather than providing actual performance gains. For high precision, however, the GPU solver does not achieve the same level of performance as the CPU solver. This is anticipated, as the condensed system utilized by the GPU solvers often encounters worse conditioning in practice. Overall, the GPU solver converges in two fewer instances than the CPU solver. However, for the converged instances, the speed-up is still significant (3x speed-up in SGM10 on large instances).
 
-
-% \begin{table}[t]
-%   \centering\footnotesize
-%   \caption{Solve time in seconds and SGM10 on instances of pglib-opf}\label{tab:pglib-opf}
-% \end{table}
-
 \paragraph{COPS Benchmark}
 The results are largely similar to those of the pglib-opf benchmark, but the speed-up is more pronounced in these instances, as the COPS benchmark library is designed to be scalable~\cite{dolanBenchmarkingOptimizationSoftware2001} (thus exhibiting a highly regular structure, which provides more opportunities for exploiting parallelism). Again, for large instances, one can achieve more than a 10x speed-up on average. The speed-up is also substantial for high-precision solves, although the speed-up factor is smaller overall.
-
-
-
-% \begin{table}[t]
-%   \centering\footnotesize
-%   \caption{Solve time in seconds and SGM10 on instances of COPS Benchmark}\label{tab:cops}
-% \end{table}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Conclusions and Future Outlook}\label{eqn:conclusion}
 We have presented a current landscape of GPU-accelerated second-order optimization solvers. We have also demonstrated with numerical examples that GPU acceleration can achieve more than an order of magnitude speed-up for large instances when solved up to medium precision. However, some open questions and implementation challenges remain, which we summarize below.
@@ -394,9 +357,17 @@ We have presented a current landscape of GPU-accelerated second-order optimizati
 \appendix
 
 \section{More Details on Numerical Results}\label{apx:num}
-% Technical appendices with additional results, figures, graphs and proofs may be submitted with the paper submission before the full submission deadline (see above), or as a separate PDF in the ZIP file below before the supplementary material deadline. There is no page limit for the technical appendices.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Solver Configuration}
+\subsubsection{LP Solvers}
+\paragraph{MadIPM}
+
+\paragraph{Gurobi}
+\subsubsection{NLP Solvers}
+\paragraph{MadNLP}
+
+
+\paragraph{Ipopt}
 
 \newpage
 \section*{NeurIPS Paper Checklist}
