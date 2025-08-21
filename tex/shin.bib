@@ -1,10 +1,3 @@
-@book{duff2017,
-  title={Direct methods for sparse matrices},
-  author={Duff, Iain S and Erisman, Albert Maurice and Reid, John Ker},
-  year={2017},
-  publisher={Oxford University Press}
-}
-
 @inproceedings{10.1145/3458817.3476165,
   title = {Reverse-Mode Automatic Differentiation and Optimization of {{GPU}} Kernels via Enzyme},
   booktitle = {Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis},
@@ -4575,6 +4568,24 @@ Subject\_term: Environmental sciences, Biodiversity, Engineering},
   abstract = {In this article, we present a CUDA library with a C API for solving block cyclic tridiagonal and banded systems on one GPU. The library can process block tridiagonal systems with block sizes from 1 {\texttimes} 1 (scalar) to 4 {\texttimes} 4 and banded systems with up to four sub- and superdiagonals. For the compute-intensive block size cases and cases with many right-hand sides, we write out an explicit factorization to memory; however, for the scalar case, the fastest approach is to only output the coarse system and recompute the factorization. Prominent features of the library are (scaled) partial pivoting for improved numeric stability; highest-performance kernels, which completely utilize GPU memory bandwidth; and support for multiple sparse or dense right-hand side and solution vectors. The additional memory consumption is only 5\% of the original tridiagonal system, which enables the solution of systems up to GPU memory size. The performance of the state-of-the-art scalar tridiagonal solver of cuSPARSE is outperformed by factor 5 for large problem sizes of 2               25               unknowns, on a GeForce RTX 2080 Ti.},
   langid = {english},
   file = {/Users/sushin/Zotero/storage/SPGI6ACA/Klein and Strzodka - 2023 - Tridigpu A GPU Library for Block Tridiagonal and Banded Linear Equation Systems.pdf}
+}
+
+@article{kochMIPLIB20102011,
+  title = {{{MIPLIB}} 2010},
+  author = {Koch, Thorsten and Achterberg, Tobias and Andersen, Erling and Bastert, Oliver and Berthold, Timo and Bixby, Robert E. and Danna, Emilie and Gamrath, Gerald and Gleixner, Ambros M. and Heinz, Stefan and Lodi, Andrea and Mittelmann, Hans and Ralphs, Ted and Salvagnin, Domenico and Steffy, Daniel E. and Wolter, Kati},
+  year = {2011},
+  month = jun,
+  journal = {Mathematical Programming Computation},
+  volume = {3},
+  number = {2},
+  pages = {103--163},
+  issn = {1867-2957},
+  doi = {10.1007/s12532-011-0025-9},
+  urldate = {2025-08-21},
+  abstract = {This paper reports on the fifth version of the Mixed Integer Programming Library. The miplib 2010 is the first miplib release that has been assembled by a large group from academia and from industry, all of whom work in integer programming. There was mutual consent that the concept of the library had to be expanded in order to fulfill the needs of the community. The new version comprises 361 instances sorted into several groups. This includes the main benchmark test set of 87 instances, which are all solvable by today's codes, and also the challenge test set with 164 instances, many of which are currently unsolved. For the first time, we include scripts to run automated tests in a predefined way. Further, there is a solution checker to test the accuracy of provided solutions using exact arithmetic.},
+  langid = {english},
+  keywords = {90C10,90C11,90C90,IP,MIP,MIPLIB,Mixed Integer Programming,Problem instances},
+  file = {/Users/sushin/Zotero/storage/3D82EXF4/Koch et al. - 2011 - MIPLIB 2010.pdf}
 }
 
 @misc{kokolisRevisitingReliabilityLargeScale2024,

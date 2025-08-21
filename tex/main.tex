@@ -353,8 +353,7 @@ which corresponds to the case of $f_o(x, p) =$ \lstinline|100 * (x[p-1]^2 - x[p]
 
 \section{Numerical Results}\label{eqn:num} 
 We benchmarked the performance of two GPU implementations (MadIPM for \glspl*{lp} and MadNLP for \glspl*{nlp}) against the CPU solvers (Gurobi for \glspl*{lp} and Ipopt for \glspl*{nlp}).
-MadNLP is configured with cuDSS as the linear solver, while Ipopt is set up with either Ma27 (for pglib-opf) or Ma57 (for COPS), utilizing OpenBLAS as the BLAS and LAPACK backends. All nonlinear models are implemented with ExaModels (running on either GPU or CPU).
-For \glspl*{lp}, we performed the benchmark on the MIPLIB 2017 benchmark library \cite{gleixnerMIPLIB2017Datadriven2021}, while for \glspl*{nlp}, the benchmark was conducted on the pglib-opf \cite{babaeinejadsarookolaeePowerGridLibrary2021} and the COPS library \cite{dolanBenchmarkingOptimizationSoftware2001}.
+For \glspl*{lp}, we performed the benchmark on the MIPLIB 2010 benchmark library \cite{kochMIPLIB20102011}, while for \glspl*{nlp}, the benchmark was conducted on the pglib-opf \cite{babaeinejadsarookolaeePowerGridLibrary2021} and the COPS library \cite{dolanBenchmarkingOptimizationSoftware2001}.
 The results are summarized in \Cref{tab:results}.
 The instances are classified into small, medium, and large categories based on the number of nonzeros in the Lagrangian Hessian and constraint Jacobian.
 For each instance, we separately report the results for medium precision (tol$=10^{-4}$) and high precision (tol$=10^{-8}$).
@@ -363,22 +362,28 @@ When reporting the solve time for multiple instances, we represent them using th
 If an instance is unsolved, its solving time is set to the corresponding time limit.
 All numerical results are shown in \Cref{tab:results}.
 The numerical results can be reproduced with the source code and Manifest file available at \url{https://github.com/MadNLP/neurips2025-mathprog-on-gpu}.
-The benchmark was performed on a workstation with two Intel(R) Xeon(R) Platinum 6130 CPUs @ 2.10GHz, two Quadro GV 100 GPUs, and 128 GB of RAM.
+The benchmark was performed on a workstation with two Intel(R) Xeon(R) Platinum 6130 CPUs @ 2.10GHz, two Quadro GV 100 GPUs (interfaced via PCIe v3.0), and 128 GB of RAM (2400 MT/s).
+
+\textit{Disclaimer}: The numerical results provided here aim to illustrate the current capabilities of GPU solvers by comparing them with a comparable implementations on CPUs, and this benchmark does not seek to evaluate the overall performance of the solvers. For instance, certain performance-critical options for CPU solvers, such as presolve and crossover, have been disabled to allow for a focused comparison of barrier iteration performance. Additionally, the convergence criteria for each solver differs slightly, and performance comparisons are made by setting the user-facing tolerance options.
 
 \begin{table} 
   \footnotesize
   \input{table.tex}
-  \caption{Solve times of CPU solvers (Gurobi and Ipopt) and GPU solvers (MadIPM and MadNLP) in SGM10 (seconds; with a maximum wall time of 900 seconds) on MIPLIB (\glspl*{lp}), pglib-opf (31 small, 24 medium, and 11 large \glspl*{nlp}), and COPS (13 small, 16 medium, and 16 large \glspl*{nlp}) instances.}\label{tab:results} 
+  \caption{Solve times of CPU solvers (Gurobi and Ipopt) and GPU solvers (MadIPM and MadNLP) in SGM10 (seconds; with a maximum wall time of 900 seconds) on MIPLIB (88 small, 58 medium, and 28 large \glspl*{lp}), pglib-opf (31 small, 24 medium, and 11 large \glspl*{nlp}), and COPS (13 small, 16 medium, and 16 large \glspl*{nlp}) instances. For Gurobi, Barrrier method is used and Presolve and Crosover options are turned off. MadNLP is configured with cuDSS as the linear solver, while Ipopt is set up with either Ma27 (for pglib-opf) or Ma57 (for COPS), utilizing OpenBLAS as the BLAS and LAPACK backends. All nonlinear models are implemented with ExaModels (running on either GPU or CPU).
+}
+  \label{tab:results} 
 \end{table}
 
 
 \paragraph{MIPLIB}
+We have performed the benchmark against a curated subset of instances within MIPLIB 2010 library by selecting 174 instances that are sufficiently large and not trivially solved. The results in \Cref{tab:results} indicate that the GPU solver can achieve, on average, approximately 4x speed-up for the 28 largest instances (with more than $2^{20}$ non-zeros) when the problems are solved to medium precision. The speed-up is relatively modest for medium-sized instances, and there is practically no advantage for small instances. This is expected, as the GPU solver is designed to handle large-scale problems, and small-scale problems cannot fully utilize the available parallel cores. In such cases, the overhead related to parallelism, such as task scheduling and thread launching, dominates the computation time rather than providing actual performance gains. For high precision, however, the speed-up is less pronounced, and GPU solver solved significantly less number of instances, indicating that the GPU solver is not capable of solving the problems up to high precision.
 
 
 \paragraph{PGLIB-OPF}
-We have benchmarked the solver performance for solving AC OPF problems based on polar power flow formulations using the approach in \cite{PowerModelsJLOpenSource}. The results in \Cref{tab:results} indicate that the GPU solver can achieve, on average, more than a 10x speed-up for the 11 largest instances (with more than $2^{20}$ non-zeros) when the problems are solved to medium precision. The speed-up is relatively modest for medium-sized instances, and there is practically no advantage for small instances. This is expected, as the GPU solver is designed to handle large-scale problems, and small-scale problems cannot fully utilize the available parallel cores. In such cases, the overhead related to parallelism, such as task scheduling and thread launching, dominates the computation time rather than providing actual performance gains. For high precision, however, the GPU solver does not achieve the same level of performance as the CPU solver. This is anticipated, as the condensed system utilized by the GPU solvers often encounters worse conditioning in practice. Overall, the GPU solver converges in two fewer instances than the CPU solver. However, for the converged instances, the speed-up is still significant (3x speed-up in SGM10 on large instances).
+We have benchmarked the solver performance for solving AC OPF problems based on polar power flow formulations using the approach in \cite{PowerModelsJLOpenSource}. The results in \Cref{tab:results} indicate that the GPU solver can achieve, on average, more than a 10x speed-up for the 11 largest instances (with more than $2^{20}$ non-zeros) when the problems are solved to medium precision. The speed-up is relatively modest for medium-sized instances, and there is practically no advantage for small instances. For high precision, however, the GPU solver does not achieve the same level of performance as the CPU solver. This is anticipated, as the condensed system utilized by the GPU solvers often encounters worse conditioning in practice. Overall, the GPU solver converges in two fewer instances than the CPU solver. However, for the converged instances, the speed-up is still significant (3x speed-up in SGM10 on large instances).
 
 \paragraph{COPS Benchmark}
+We have performed the benchmark on the COPS benchmark library over curated instances. COPS benchmark instances are scalable, in the sense that the user can specify the size of problem. For each type of instance, we have formulated the problem with five different sizes, roughly by doubling the nubmer of variables and constraints.
 The results are similar to those of the pglib-opf benchmark, but the speed-up is more pronounced in these instances, as the COPS benchmark library is designed to be scalable~\cite{dolanBenchmarkingOptimizationSoftware2001} (thus exhibiting a highly regular structure, which provides more opportunities for exploiting parallelism).
 Again, for large instances, one can achieve more than a 10x speed-up on average. The speed-up is also substantial for high-precision solves, although the speed-up factor is smaller overall.
 
@@ -398,20 +403,53 @@ We have also demonstrated with numerical examples that GPU acceleration can achi
 \bibliography{shin}
 
 \appendix
+\section{Solver Options}
+\subsection{Gurobi}
+\begin{lstlisting}
+FeasibilityTol = 1e-4 or 1e-8
+OptimalityTol = 1e-4 or 1e-8
+TimeLimit = 900.0
+Method = 2 
+Presolve = 0
+Crossover = 0
+Threads = 16
+\end{lstlisting}
+\subsection{Ipopt}
+\begin{lstlisting}
+tol = 1e-4 or 1e-8
+bound_relax_factor = 1e-4 or 1e-8
+max_wall_time = 900.0
+linear_solver = "ma27" or "ma57"
+ma57_automatic_scaling = "yes"
+dual_inf_tol = 10000.0
+constr_viol_tol = 10000.0
+compl_inf_tol = 10000.0
+honor_original_bounds = "no"
+print_timing_statistics = "yes"
+\end{lstlisting}
+\subsection{MadIPM}
+\begin{lstlisting}
+tol = 1e-4 or 1e-8
+max_wall_time = 900.0
+max_iter = 500
+linear_solver = MadNLPGPU.CUDSSSolver
+cudss_algorithm = MadNLP.LDL
+regularization = MadIPM.FixedRegularization(1e-8, -1e-8)
+print_level = MadNLP.INFO
+rethrow_error = true
+\end{lstlisting}
+\subsection{MadNLP}
+\begin{lstlisting}
+tol = 1e-4 or 1e-8
+max_wall_time = 900.0
+\end{lstlisting}
 
-\section{More Details on Numerical Results}\label{apx:num}
-
-\subsection{Solver Configuration}
-\subsubsection{LP Solvers}
-\paragraph{MadIPM}
-
-\paragraph{Gurobi}
-\subsubsection{NLP Solvers}
-\paragraph{MadNLP}
-
-
-\paragraph{Ipopt}
-
+\section{Full Numerical Results}
+\subsection{MIPLIB}
+\subsection{PGLIB-OPF}
+\subsection{COPS}
+\begin{lstlisting}
+\end{lstlisting}
 \newpage
 \section*{NeurIPS Paper Checklist}
 

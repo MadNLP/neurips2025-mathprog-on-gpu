@@ -4,11 +4,11 @@
   &&& \multicolumn{2}{c|}{nnz $<2^{18}$}& \multicolumn{2}{c|}{$2^{18}\leq$ nnz $<2^{20}$}& \multicolumn{2}{c|}{$2^{20}\leq$ nnz}&&\\
   &&&  Solved & Time &  Solved & Time &  Solved & Time &  Solved & Time \\
   \hline\hline
-  \multirow{4}{*}{\rotatebox{90}{\bfseries MIPLIB}}&\multirow{2}{*}{1e-4} & MadIPM & 31 & 0.4166 & 24 & 2.6380 & 11 & 3.7040 & 66 & 1.6979  \\
-  && Gurobi & 31 & 0.3970 & 24 & 5.0697 & 11 & 38.5053 & 66 & 5.3817  \\
+  \multirow{4}{*}{\rotatebox{90}{\bfseries MIPLIB}}&    \multirow{2}{*}{$10^{-4}$} & MadIPM & 87 & 1.3013 & 56 & 5.0480 & 27 & 19.7925 & 170 & 4.5319  \\
+  && Gurobi & 88 & 1.5439 & 58 & 10.4671 & 23 & 78.5783 & 169 & 9.3939  \\
   \cline{2-11}
-  &\multirow{2}{*}{1e-8} & MadNLP & 30 & 2.5037 & 24 & 4.6016 & 10 & 12.8040 & 64 & 4.6228  \\
-  && Ipopt & 31 & 0.5100 & 24 & 5.4292 & 11 & 37.7818 & 66 & 5.5541  \\
+  &\multirow{2}{*}{$10^{-8}$} & MadIPM & 85 & 2.8157 & 48 & 18.2642 & 25 & 33.1676 & 158 & 10.2820  \\
+  && Gurobi & 88 & 1.5708 & 58 & 10.6148 & 24 & 76.3206 & 170 & 9.3826  \\
   \hline\hline
   \multirow{4}{*}{\rotatebox{90}{\bfseries OPF}}&\multirow{2}{*}{1e-4} & MadNLP & 31 & 0.4166 & 24 & 2.6380 & 11 & 3.7040 & 66 & 1.6979  \\
   && Ipopt & 31 & 0.3970 & 24 & 5.0697 & 11 & 38.5053 & 66 & 5.3817  \\
