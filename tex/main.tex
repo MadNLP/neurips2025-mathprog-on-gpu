@@ -243,35 +243,35 @@ We now explain how the \gls*{ipm} can be adapted to avoid numerical pivoting, th
 \paragraph{Interior-Point Methods and KKT Systems}  
 The \gls*{ipm} is a class of optimization algorithms designed to solve inequality-constrained optimization problems \cite{nocedalNumericalOptimization2006}. These methods transform \cref{eqn:opt} into a sequence of log-barrier subproblems:
 \begin{align}\label{eqn:barrier}
-  \min_{x,s} \; & f(x) - \mu \sum_{i=1}^m \log(s_i) \quad \text{s.t.} \; g(x) - s = 0,
+  \min_{x,s} \; & f(x) - \mu \sum_{i=1}^m \log(s_i) \quad \text{s.t.} \quad g(x) - s = 0,
 \end{align}
 where $s \in \mathbb{R}^m$ denotes the slack variable, and $\mu > 0$ is the barrier parameter, which is gradually reduced to zero.  
 \Gls*{ipm} attempts to iteratively solve the \gls*{kkt} conditions for \cref{eqn:barrier}:
 \begin{align}\label{eqn:kkt}
   \nabla f(x) - \nabla g(x)^\top \lambda = 0, \quad
-  S \Lambda e = \mu e, \quad
+  S \Lambda e - \mu e = 0, \quad
   g(x) - s = 0,
 \end{align}
 where $\lambda \in \mathbb{R}^m$ are the Lagrange multipliers, $S = \text{diag}(s)$, $\Lambda = \text{diag}(\lambda)$, and $e$ is the vector of ones, using Newton's method.
 At each iteration, we obtain the search direction by solving the following (regularized) KKT system:
 \begin{align}\label{eqn:kkt_system}
   \begin{bmatrix}
-    \nabla^2_{x x} \mathcal{L}(x,\lambda) + \delta_p I & & \nabla g(x)^\top  \\
-                                          & S^{-1}\Lambda & -I \\
-    \nabla g(x) & -I &  - \delta_d I\\
+    \nabla^2_{x x} \mathcal{L}(x,s,\lambda) + \delta_p I & & \nabla g(x)^\top
+    \\ & \Lambda & S
+    \\ \nabla g(x) & -I &  - \delta_d I
   \end{bmatrix}
   \begin{bmatrix}
-    \phantom{-}d_x\\
+    \phantom{-}d_x \\
     \phantom{-}d_s \\
     -d_\lambda
   \end{bmatrix} =
   -\begin{bmatrix}
     \nabla f(x) - \nabla g(x)^\top \lambda\\
-    \Lambda e - \mu S^{-1} e \\
+    S \Lambda e - \mu e \\
     g(x) - s\\
   \end{bmatrix},
 \end{align}
-where $\mathcal{L}(x,\lambda,s) := f(x) - \lambda^\top (g(x)-s)$ is the Lagrangian function and $\delta_p, \delta_d \geq 0$ are the primal and dual regularization parameters.
+where $\mathcal{L}(x,s,\lambda) := f(x) - \lambda^\top (g(x)-s)$ is the Lagrangian function and $\delta_p, \delta_d \geq 0$ are the primal and dual regularization parameters.
 
 
 \paragraph{Regularization}
@@ -290,7 +290,7 @@ Below, we outline such condensation strategies. Note that these analyses are sub
 Since the \((2,2)\)-block \(S^{-1}\Lambda\) in \cref{eqn:kkt_system} is always invertible due to the nature of the \gls*{ipm}, we can eliminate it to obtain the following \(2 \times 2\) block system:  
 \begin{equation}\label{eqn:augmentedKKT}
   \begin{bmatrix}
-    \nabla^2_{xx} \mathcal{L}(x,\lambda) + \delta_p I & \nabla g(x)^\top \\
+    \nabla^2_{xx} \mathcal{L}(x,s,\lambda) + \delta_p I & \nabla g(x)^\top \\
     \nabla g(x) &  - \delta_d I - \Lambda^{-1} S
   \end{bmatrix}
   \begin{bmatrix}
@@ -307,7 +307,7 @@ This elimination does not incur significant computational overhead, and the numb
 \item \textit{Primal Condensed System}:
 The $\delta_d I + \Lambda^{-1}S$ block within \eqref{eqn:augmentedKKT} is always invertible, and its elimination gives rise to a \emph{primal condensed KKT system}:
 \begin{align}\label{eqn:kkt_primal}
-  \left(\nabla^2_{x x} \mathcal{L}(x, \lambda) + \delta_p I + \nabla g(x)^\top (\delta_d I + \Lambda^{-1} S)^{-1} \nabla g(x) \right) d_x = - r_p \; ,
+  \left(\nabla^2_{x x} \mathcal{L}(x,s,\lambda) + \delta_p I + \nabla g(x)^\top (\delta_d I + \Lambda^{-1} S)^{-1} \nabla g(x) \right) d_x = - r_p \; ,
 \end{align}
 where $r_p$ is an appropriate right-hand side derived from \eqref{eqn:augmentedKKT}.
 Compared to \cref{eqn:augmentedKKT}, the system size is further reduced.
@@ -316,13 +316,13 @@ However, since the Jacobian $\nabla g(x)$ can have dense rows, the condensed sys
 
 
 \item \textit{Dual Condensed System}:
-When the problem is strongly convex or when the regularization parameter $\delta_p$ is sufficiently large, the $\nabla^2 \mathcal{L}(x,\lambda) + \delta_p I$ block is invertible, and by eliminating it, we obtain the \emph{dual condensed KKT system}:
+When the problem is strongly convex or when the regularization parameter $\delta_p$ is sufficiently large, the $\nabla^2 \mathcal{L}(x,s,\lambda) + \delta_p I$ block is invertible, and by eliminating it, we obtain the \emph{dual condensed KKT system}:
 \begin{align}\label{eqn:kkt_dual}
-  \left(\delta_d I + \Lambda^{-1}S + \nabla g(x)\left(\nabla_{x x}^2 \mathcal{L}(x,\lambda) + \delta_p I\right)^{-1} \nabla g(x)^\top\right)
+  \left(\delta_d I + \Lambda^{-1}S + \nabla g(x)\left(\nabla_{x x}^2 \mathcal{L}(x,s,\lambda) + \delta_p I\right)^{-1} \nabla g(x)^\top\right)
   d_\lambda = - r_d \; ,
 \end{align}
 with $r_d$ an appropriate right-hand-side.
-In the context of linear programming, this is always applicable when $\delta_p>0$, and this system is often called \emph{normal equations} and is often used by default as the diagonal block $\nabla^2_{x x} \mathcal{L}(x, \lambda) + \delta_p I$ is easy to invert.
+In the context of linear programming, this is always applicable when $\delta_p>0$, and this system is often called \emph{normal equations} and is often used by default as the diagonal block $\nabla^2_{x x} \mathcal{L}(x,s,\lambda) + \delta_p I$ is easy to invert.
 Assuming that the primal Hessian is \gls*{spd}, this system is always \gls*{spd}.
 Similarly to the primal condensed system, this system can be arbitrarily dense (when there is a dense column in $\nabla g(x)$.
 \end{itemize}
@@ -336,7 +336,7 @@ We now explain which KKT system formulation among \cref{eqn:kkt_system,eqn:augme
 \item \textit{Nonconvex Case}:
   For nonconvex problems, the primal condensed system \cref{eqn:kkt_primal} is the most suitable, as it can be made \gls*{spd} by choosing the primal-dual regularization parameters $(\delta_p, \delta_d)$ simply based on inertia correction (i.e., strong factorizability is ensured without incurring excessive regularization).
   The augmented or primal-dual condensed systems \cref{eqn:kkt_system,eqn:augmentedKKT} are not suitable because they are not guaranteed to be \gls*{sqd} unless \emph{additionally strong} (beyond what's necessary to ensure the descent condition) regularization parameters $(\delta_p, \delta_d)$ are used.
-  The dual condensed system \cref{eqn:kkt_dual} is not suitable either, as the $\nabla^2_{x x} \mathcal{L}(x, \lambda) + \delta_p I$ block is typically not diagonal (due to nonlinear constraints).
+  The dual condensed system \cref{eqn:kkt_dual} is not suitable either, as the $\nabla^2_{x x} \mathcal{L}(x,s,\lambda) + \delta_p I$ block is typically not diagonal (due to nonlinear constraints).
 \end{itemize}
 
 
