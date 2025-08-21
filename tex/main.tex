@@ -369,7 +369,7 @@ These results can be reproduced with the source code available at \url{https://g
 \begin{table} 
   \footnotesize
   \input{table.tex}
-  \caption{Solution times for CPU solvers (Gurobi and Ipopt) and GPU solvers (MadIPM and MadNLP) are represented using SGM10, defined as $(\prod_{i=1}^n (t_i +10))^{1/n} - 10$, where $t_i$ denotes the solve time for the $i$-th instance (in seconds; unsolved instances are assigned a maximum wall time of 900 seconds) across various datasets: MIPLIB (88 small, 58 medium, and 28 large \glspl*{lp}), PGLIB-OPF (31 small, 24 medium, and 11 large \glspl*{nlp}), and COPS (13 small, 16 medium, and 16 large \glspl*{nlp}). For Gurobi, the Barrier method is used, with both the Presolve and Crossover options disabled. MadNLP is configured with cuDSS, while Ipopt is configured with either Ma27 (for PGLIB-OPF) or Ma57 (for COPS). All \glspl*{pl} are modeled using ExaModels. The benchmarking was conducted on a workstation equipped with two Intel Xeon Gold 6130 CPUs operating at 2.10GHz, two Quadro GV~100 GPUs, and 128 GB of RAM running at 2400 MT/s.
+  \caption{Solution times for CPU solvers (Gurobi and Ipopt) and GPU solvers (MadIPM and MadNLP) are represented using SGM10, defined as $(\prod_{i=1}^n (t_i +10))^{1/n} - 10$, where $t_i$ denotes the solve time for the $i$-th instance (in seconds; unsolved instances are assigned a maximum wall time of 900 seconds) across various datasets: MIPLIB (88 small, 58 medium, and 28 large \glspl*{lp}), PGLIB-OPF (31 small, 24 medium, and 11 large \glspl*{nlp}), and COPS (13 small, 16 medium, and 16 large \glspl*{nlp}). For Gurobi, the Barrier method is used, with both the Presolve and Crossover options disabled. MadNLP is configured with cuDSS, while Ipopt is configured with either Ma27 (for PGLIB-OPF) or Ma57 (for COPS). All \glspl*{nlp} are modeled using ExaModels. The benchmarking was conducted on a workstation equipped with two Intel Xeon Gold 6130 CPUs operating at 2.10GHz, two Quadro GV~100 GPUs, and 128 GB of RAM running at 2400 MT/s.
   }
   \label{tab:results} 
 \end{table}
@@ -379,7 +379,7 @@ These results can be reproduced with the source code available at \url{https://g
 We have performed the benchmark against a curated subset of instances within MIPLIB 2010 library by selecting 174 instances that are sufficiently large and not trivially solved. The results in \Cref{tab:results} indicate that the GPU solver can achieve, on average, approximately 4x speed-up for the 28 largest instances (with more than $2^{20}$ non-zeros) when the problems are solved to medium precision. The speed-up is relatively modest for medium-sized instances, and there is practically no advantage for small instances. This is expected, as the GPU solver is designed to handle large-scale problems, and small-scale problems cannot fully utilize the available parallel cores. In such cases, the overhead related to parallelism, such as task scheduling and thread launching, dominates the computation time rather than providing actual performance gains. For high precision, however, the speed-up is less pronounced, and GPU solver solved significantly less number of instances, indicating that the GPU solver is not capable of solving the problems up to high precision.
 
 
-\paragraph{PGLIB-OPF}
+\paragraph{PGLIB-OPF} 
 We have benchmarked the solver performance for solving AC OPF problems based on polar power flow formulations using the approach in \cite{PowerModelsJLOpenSource}. The results in \Cref{tab:results} indicate that the GPU solver can achieve, on average, more than a 10x speed-up for the 11 largest instances (with more than $2^{20}$ non-zeros) when the problems are solved to medium precision. The speed-up is relatively modest for medium-sized instances, and there is practically no advantage for small instances. For high precision, however, the GPU solver does not achieve the same level of performance as the CPU solver. This is anticipated, as the condensed system utilized by the GPU solvers often encounters worse conditioning in practice. Overall, the GPU solver converges in two fewer instances than the CPU solver. However, for the converged instances, the speed-up is still significant (3x speed-up in SGM10 on large instances).
 
 \paragraph{COPS Benchmark}
@@ -445,13 +445,21 @@ rethrow_error = true
 tol = 1e-4 or 1e-8
 max_wall_time = 900.0
 \end{lstlisting}
-
 \section{Full Numerical Results}
-\subsection{MIPLIB}
-\subsection{PGLIB-OPF}
-\subsection{COPS}
-\begin{lstlisting}
-\end{lstlisting}
+% \subsection{MIPLIB (high tolerance)}
+\include{fulltable-miplib-high.tex} 
+% \subsection{MIPLIB (low tolerance)}
+\include{fulltable-miplib-low.tex}
+
+% \subsection{PGLIB-OPF (high tolerance)} 
+\include{fulltable-opf-high.tex}
+% \subsection{PGLIB-OPF (low tolerance)} 
+\include{fulltable-opf-low.tex}
+
+% \subsection{COPS (high tolerance)}
+\include{fulltable-cops-high.tex}
+% \subsection{COPS (low tolerance)}
+\include{fulltable-cops-low.tex} 
 \newpage
 \section*{NeurIPS Paper Checklist}
 
