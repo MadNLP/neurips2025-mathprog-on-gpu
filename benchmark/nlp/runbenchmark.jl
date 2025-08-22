@@ -156,16 +156,16 @@ for (case, model) in cases
         
         @info "Solving with madnlp"
         m_gpu = model(backend = CUDABackend())
-        madnlp(m_gpu; output_file = "madnlp_$(case)_$(optname).log", madnlp_opt...)
+        madnlp(m_gpu; output_file = "results/madnlp_$(case)_$(optname).log", madnlp_opt...)
         t_madnlp = @elapsed begin
-            sol_madnlp = madnlp(m_gpu; output_file = "madnlp_$(case)_$(optname).log", madnlp_opt...)
+            sol_madnlp = madnlp(m_gpu; output_file = "results/madnlp_$(case)_$(optname).log", madnlp_opt...)
         end
         
         @info "Solving with ipopt"
         m_cpu = model()
-        ipopt(m_cpu; output_file = "ipopt_$(case)_$(optname).log", ipopt_opt...)
+        ipopt(m_cpu; output_file = "results/ipopt_$(case)_$(optname).log", ipopt_opt...)
         t_ipopt  = @elapsed begin
-            sol_ipopt = ipopt(m_cpu; output_file = "ipopt_$(case)_$(optname).log", ipopt_opt...)
+            sol_ipopt = ipopt(m_cpu; output_file = "results/ipopt_$(case)_$(optname).log", ipopt_opt...)
         end
 
         results["$(case)_$(optname)"] = (
@@ -187,7 +187,7 @@ for (case, model) in cases
         )
 
         # resave results to JLD2 file
-        JLD2.@save "results-$(class).jld2" results
+        JLD2.@save "results/results-$(class).jld2" results
     end
 end
 
