@@ -10,7 +10,7 @@ end
 
 class = parse_args(s)["class"]
 
-JLD2.@load "results-$(class).jld2" results
+JLD2.@load "results/results-$(class).jld2" results
 
 maxtime = 900
 nnzcut1 = 2^18
@@ -64,7 +64,7 @@ function write_row(tol, total)
 end
 
 
-write("table-$(class).tex", """
+write("results/table-$(class).tex", """
 \\begin{tabular}{|c|c|cc|cc|cc|cc|}
   \\hline
   \\multirow{ 3}{*}{Tol} & \\multirow{ 3}{*}{Solver} & \\multicolumn{2}{c|}{\\textbf{Small} ($(nsmall))}& \\multicolumn{2}{c|}{\\textbf{Medium} ($(nmedium))}& \\multicolumn{2}{c|}{\\textbf{Large} ($(nlarge))}& \\multicolumn{2}{c|}{\\multirow{2}{*}{\\textbf{Total} ($ntotal)}}\\\\

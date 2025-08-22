@@ -1,0 +1,6 @@
+[MIPLIB2010]
+git-tree-sha1 = "b46c70eeec361048233c787a0800aac50fcf492a"
+
+    [[MIPLIB2010.download]]
+    sha256 = "b6875677156eb2267c85c8bd5463bd1d7b437870e2a351c19224f395a0295f95"
+    url = "https://miplib2010.zib.de/download/miplib2010-complete.tgz"

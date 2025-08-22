@@ -23,9 +23,9 @@ cont = parse_args(s)["continue"]
 @info "Using device: $device for class: $class, continue: $cont"
 CUDA.device!(device)
 
-if cont && isfile("results-$class.jld2")
+if cont && isfile("results/results-$class.jld2")
     @info "Continuing from previous results."
-    JLD2.@load "results-$class.jld2" results
+    JLD2.@load "results/results-$class.jld2" results
 else
     @info "Starting fresh, no previous results found."
     results = Dict{String,Any}()
@@ -160,8 +160,6 @@ for (case, model) in cases
         t_madnlp = @elapsed begin
             sol_madnlp = madnlp(m_gpu; output_file = "madnlp_$(case)_$(optname).log", madnlp_opt...)
         end
-        log_madnlp = read("madnlp_$(case)_$(optname).log", String),
-
         
         @info "Solving with ipopt"
         m_cpu = model()
@@ -169,13 +167,23 @@ for (case, model) in cases
         t_ipopt  = @elapsed begin
             sol_ipopt = ipopt(m_cpu; output_file = "ipopt_$(case)_$(optname).log", ipopt_opt...)
         end
-        log_ipopt = read("ipopt_$(case)_$(optname).log", String)
 
         results["$(case)_$(optname)"] = (
             ;
-            t_madnlp, t_ipopt, sol_madnlp, sol_ipopt,
-            log_madnlp, log_ipopt,
-            meta = m_cpu.meta,
+            t_madnlp, t_ipopt,
+            sol_madnlp = (
+                status = sol_madnlp.status,
+            ),
+            sol_ipopt = (
+                status = sol_ipopt.status,
+            ),
+            meta = (
+                nvar = m_cpu.meta.nvar,
+                ncon = m_cpu.meta.ncon,
+                nnzh = m_cpu.meta.nnzh,
+                nnzj = m_cpu.meta.nnzj
+            ),
+            tol = opt,
         )
 
         # resave results to JLD2 file
