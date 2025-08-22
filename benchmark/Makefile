@@ -7,24 +7,27 @@ CONTINUE ?= 0
 all: opf cops miplib
 
 
-miplib: table-miplib.tex fulltable-miplib-high.txt fulltable-miplib-low.txt
-table-miplib.tex: 
+miplib: results/table-miplib.tex results/fulltable-miplib-high.txt results/fulltable-miplib-low.txt
+results/table-miplib.tex: 
 	@echo "Running Julia benchmarks to produce table-miplib.tex..."
-	julia --project=lp --color=yes lp/runbenchmark.jl --device $(DEVICE) $(if $(filter 1,$(CONTINUE)),--continue) miplib
-	julia --project=lp --color=yes lp/maketable.jl miplib
-	julia --project=lp --color=yes lp/fulltable.jl cops
+	julia --project=lp --color=yes lp/runbenchmark.jl --device $(DEVICE) $(if $(filter 1,$(CONTINUE)),--continue)
+results/fulltable-miplib-high.txt fulltable-miplib-low.txt:
+	julia --project=lp --color=yes lp/maketable.jl
+	julia --project=lp --color=yes lp/fulltable.jl
 
-opf: table-opf.tex fulltable-miplib-high.txt fulltable-miplib-low.txt
-table-opf.tex: 
+opf: results/table-opf.tex results/fulltable-opf-high.txt results/fulltable-opf-low.txt
+results/table-opf.tex: 
 	@echo "Running Julia benchmarks to produce table-opf.tex..."
 	julia --project=nlp --color=yes nlp/runbenchmark.jl --device $(DEVICE) $(if $(filter 1,$(CONTINUE)),--continue) opf
+results/fulltable-opf-high.txt results/fulltable-opf-low.txt:
 	julia --project=nlp --color=yes nlp/maketable.jl opf
-	julia --project=nlp --color=yes nlp/fulltable.jl cops
+	julia --project=nlp --color=yes nlp/fulltable.jl opf
 
-cops: table-cops.tex fulltable-miplib-high.txt fulltable-miplib-low.txt
-table-cops.tex: 
+cops: results/table-cops.tex results/fulltable-cops-high.txt results/fulltable-cops-low.txt
+results/table-cops.tex: 
 	@echo "Running Julia benchmarks to produce table-cops.tex..."
 	julia --project=nlp --color=yes nlp/runbenchmark.jl --device $(DEVICE) $(if $(filter 1,$(CONTINUE)),--continue) cops
+results/fulltable-cops-high.txt results/fulltable-cops-low.txt:
 	julia --project=nlp --color=yes nlp/maketable.jl cops
 	julia --project=nlp --color=yes nlp/fulltable.jl cops
 
