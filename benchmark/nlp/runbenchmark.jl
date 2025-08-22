@@ -183,7 +183,7 @@ for (case, model) in cases
                 nnzh = m_cpu.meta.nnzh,
                 nnzj = m_cpu.meta.nnzj
             ),
-            tol = opt,
+            tol = optname,
         )
 
         # resave results to JLD2 file

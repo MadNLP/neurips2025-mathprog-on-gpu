@@ -4,7 +4,7 @@ DEVICE ?= 0
 CONTINUE ?= 0
 
 .PHONY: all
-all: opf cops miplib
+all: miplib opf cops
 
 
 miplib: results/table-miplib.tex results/fulltable-miplib-high.txt results/fulltable-miplib-low.txt
