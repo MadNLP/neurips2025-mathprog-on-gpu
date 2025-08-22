@@ -1,18 +1,115 @@
-using DelimitedFiles
-using MadNLP
-using MadIPM
-using MadNLPHSL
-using QPSReader
-using QuadraticModels
-using SparseArrays
+using Artifacts, JLD2, ArgParse, MadNLP, MadIPM, QPSReader, QuadraticModels, SparseArrays, GZip,
+    CodecBzip2, NLPModels, CUDA, KernelAbstractions, MadNLPGPU, QuadraticModelsGurobi,
+    Gurobi, SolverCore, DelimitedFiles, HSL
 
-using GZip
-using CodecBzip2
-using HSL
-using NLPModels
-using SparseArrays
-
+import QuadraticModelsGurobi: gurobi
 import QuadraticModels: SparseMatrixCOO
+
+
+s = ArgParseSettings()
+
+@add_arg_table s begin
+    "--device"
+    help = "device id to use for GPU computations"
+    arg_type = Int
+    default = 0
+    "--continue"
+    help = "continue from previous results"
+    action = :store_true
+    "--name"
+    help = "custom name for the run"
+    arg_type = String
+    default = "miplib"
+end
+
+device = parse_args(s)["device"]
+cont = parse_args(s)["continue"]
+name = parse_args(s)["name"]
+
+@info "Using device: $device, continue: $cont"
+CUDA.device!(device)
+
+if cont && isfile("results/results-$name.jld2")
+    @info "Continuing from previous results."
+    JLD2.@load "results/results-$name.jld2" results
+else
+    @info "Starting fresh, no previous results found."
+    results = Dict{String,Any}()
+end
+
+max_wall_time = 900. # 15 minutes
+
+
+function madipm(m; kwargs...)
+    solver = MadIPM.MPCSolver(m; kwargs...)
+    return MadIPM.solve!(solver)
+end
+
+gurobi_set_param(env, k, v::Float64) = GRBsetdblparam(env, k, v)
+gurobi_set_param(env, k, v::Int) = GRBsetintparam(env, k, v)
+gurobi_set_param(env, k, v::String) = GRBsetstrparam(env, k, v)
+gurobi_set_param(env, k, v) = error("Unsupported parameter type: $(typeof(v))")
+
+function gurobi(QM::QuadraticModel{T, S, M1, M2}; kwargs...) where {T, S, M1 <: SparseMatrixCOO, M2 <: SparseMatrixCOO}
+    env = Gurobi.Env()
+    
+    for (k, v) in kwargs
+        gurobi_set_param(env, k, v)
+    end
+
+    model = Ref{Ptr{Cvoid}}()
+    GRBnewmodel(env, model, "", QM.meta.nvar, QM.data.c, QM.meta.lvar, QM.meta.uvar, C_NULL, C_NULL)
+    GRBsetdblattr(model.x, "ObjCon", QM.data.c0)
+    if QM.meta.nnzh > 0
+        Hvals = zeros(eltype(QM.data.H.vals), length(QM.data.H.vals))
+        for i=1:length(QM.data.H.vals)
+            if QM.data.H.rows[i] == QM.data.H.cols[i]
+                Hvals[i] = QM.data.H.vals[i] / 2
+            else
+                Hvals[i] = QM.data.H.vals[i]
+            end
+        end
+        GRBaddqpterms(model.x, length(QM.data.H.cols), convert(Array{Cint,1}, QM.data.H.rows.-1),
+                      convert(Array{Cint,1}, QM.data.H.cols.-1), Hvals)
+    end
+
+    Acsrrowptr, Acsrcolval, Acsrnzval = QuadraticModelsGurobi.sparse_csr(QM.data.A.rows,QM.data.A.cols,
+                                                   QM.data.A.vals, QM.meta.ncon,
+                                                   QM.meta.nvar)
+    GRBaddrangeconstrs(model.x, QM.meta.ncon, length(Acsrcolval), convert(Array{Cint,1}, Acsrrowptr.-1),
+                       convert(Array{Cint,1}, Acsrcolval.-1), Acsrnzval, QM.meta.lcon, QM.meta.ucon, C_NULL)
+
+    GRBoptimize(model.x)
+
+    x = zeros(QM.meta.nvar)
+    GRBgetdblattrarray(model.x, "X", 0, QM.meta.nvar, x)
+    y = zeros(QM.meta.ncon)
+    GRBgetdblattrarray(model.x, "Pi", 0, QM.meta.ncon, y)
+    s = zeros(QM.meta.nvar)
+    GRBgetdblattrarray(model.x, "RC", 0, QM.meta.nvar, s)
+    status = Ref{Cint}()
+    GRBgetintattr(model.x, "Status", status)
+    baritcnt = Ref{Cint}()
+    GRBgetintattr(model.x, "BarIterCount", baritcnt)
+    objval = Ref{Float64}()
+    GRBgetdblattr(model.x, "ObjVal", objval)
+    p_feas = Ref{Float64}()
+    GRBgetdblattr(model.x, "ConstrResidual", p_feas)
+    d_feas = Ref{Float64}()
+    GRBgetdblattr(model.x, "DualResidual", d_feas)
+    elapsed_time = Ref{Float64}()
+    GRBgetdblattr(model.x, "Runtime", elapsed_time)
+    stats = GenericExecutionStats(QM,
+                                  status = get(QuadraticModelsGurobi.gurobi_statuses, status[], :unknown),
+                                  solution = x,
+                                  objective = objval[],
+                                  iter = Int64(baritcnt[]),
+                                  primal_feas = p_feas[],
+                                  dual_feas = d_feas[],
+                                  multipliers = y,
+                                  elapsed_time = elapsed_time[])
+    return stats
+end
 
 """
     import_mps(filename::String)
@@ -105,73 +202,116 @@ function scale_qp(qp::QuadraticModel)
     )
 end
 
-function run_benchmark(src, probs; use_gpu=false, reformulate::Bool=false, test_reader::Bool=false)
-    nprobs = length(probs)
-    results = zeros(nprobs, 9)
-    for (k, prob) in enumerate(probs)
-        @info "$prob -- $k / $nprobs"
+options = [
+    :lowtol => 1e-8,
+    :hightol => 1e-4,
+]
+
+src = joinpath(artifact"MIPLIB2010", "miplib2010")
+probs = readdir(src)
+nprobs = length(probs)
+
+# precompile
+case = probs[1]
+qpdat = import_mps(joinpath(src, case))
+qp_cpu = QuadraticModel(qpdat)
+qp_gpu = convert(QuadraticModel{Float64, CuVector{Float64}}, qp_cpu)
+madipm(
+    qp_gpu;
+    max_wall_time=max_wall_time,
+    max_iter = 500,
+    linear_solver= MadNLPGPU.CUDSSSolver,
+    cudss_algorithm=MadNLP.LDL,
+    regularization=MadIPM.FixedRegularization(1e-8, -1e-8),
+    print_level=MadNLP.INFO,
+    rethrow_error=true,
+    tol = 1e-4,
+    output_file = "results/madipm_$(case)_lowtol.log",
+)
+
+for (k, case) in enumerate(probs)
+    for (optname, opt) in options
+
+        if haskey(results, "$(case)_$(optname)")
+            @info "Skipping $(case)_$(optname), already processed."
+            continue
+        else
+            @info "$case -- $k / $nprobs"
+        end
+
         qpdat = try
-            import_mps(joinpath(src, prob))
+            import_mps(joinpath(src, case))
         catch e
             @warn "Failed to import $prob: $e"
             continue
         end
-        @info "The problem $prob was imported."
+        @info "The problem $case was imported."
 
-        if !test_reader
-            qp = QuadraticModel(qpdat)
-            presolved_qp, flag = MadIPM.presolve_qp(qp)
-            !flag && continue  # problem already solved, unbounded or infeasible
-            scaled_qp = scale_qp(presolved_qp)
-            qp_cpu = reformulate ? MadIPM.standard_form_qp(scaled_qp) : scaled_qp
+        qp = QuadraticModel(qpdat)
+        presolved_qp, flag = MadIPM.presolve_qp(qp)
+        !flag && continue  # problem already solved, unbounded or infeasible
+        scaled_qp = scale_qp(presolved_qp)
+        
+        qp_cpu = MadIPM.standard_form_qp(scaled_qp)
+        qp_gpu = convert(QuadraticModel{Float64, CuVector{Float64}}, qp_cpu)
 
-            qp_ = if use_gpu
-                convert(QuadraticModel{Float64, CuVector{Float64}}, qp_cpu)
-            else
-                qp_cpu
-            end
 
-            try
-                solver = MadIPM.MPCSolver(
-                    qp_;
-                    max_iter=300,
-                    linear_solver= use_gpu ? MadNLPGPU.CUDSSSolver : Ma57Solver,
-                    cudss_algorithm=MadNLP.LDL,
-                    regularization=MadIPM.FixedRegularization(1e-8, -1e-8),
-                    print_level=MadNLP.INFO,
-                    rethrow_error=true,
-                )
-                res = MadIPM.solve!(solver)
-                results[k, 1] = Int(qp_cpu.meta.nvar)
-                results[k, 2] = Int(qp_cpu.meta.ncon)
-                results[k, 3] = Int(qp_cpu.meta.nnzj)
-                results[k, 4] = Int(qp_cpu.meta.nnzh)
-                results[k, 5] = Int(res.status)
-                results[k, 6] = res.iter
-                results[k, 7] = res.objective
-                results[k, 8] = res.counters.total_time
-                results[k, 9] = res.counters.linear_solver_time
-            catch ex
-                results[k, 8] = -1
-                @warn "Failed to solve $prob: $ex"
-                continue
-            end
+        t_madipm = @elapsed begin
+            sol_madipm = madipm(
+                qp_gpu;
+                max_wall_time=max_wall_time,
+                max_iter = 500,
+                linear_solver= MadNLPGPU.CUDSSSolver,
+                cudss_algorithm=MadNLP.LDL,
+                regularization=MadIPM.FixedRegularization(1e-8, -1e-8),
+                print_level=MadNLP.INFO,
+                rethrow_error=true,
+                tol = opt,
+                output_file = "results/madipm_$(case)_$(optname).log",
+            )
         end
+        # log_madipm = read("madipm_$(case)_$(optname).log", String)
+
+        
+        t_gurobi = @elapsed begin
+            sol_gurobi = gurobi(
+                qp_cpu;
+                TimeLimit=max_wall_time,
+                Method=2,  # Barrier method
+                Presolve=0,
+                FeasibilityTol= opt,
+                OptimalityTol= opt,
+                Threads = 16,
+                Crossover = 0,
+                LogFile = "results/gurobi_$(case)_$(optname).log",
+            )
+        end
+        # log_gurobi = read("gurobi_$(case)_$(optname).log", String)
+
+        results["$(case)_$(optname)"] = (
+            ;
+            t_madipm, t_gurobi,
+            sol_madipm = (
+                status = sol_madipm.status,
+            ),
+            sol_gurobi = (
+                status = sol_gurobi.status,
+            ),
+            # log_madipm, log_gurobi,
+            meta = (
+                nvar = qp_cpu.meta.nvar,
+                ncon = qp_cpu.meta.ncon,
+                nnzh = qp_cpu.meta.nnzh,
+                nnzj = qp_cpu.meta.nnzj
+            ),
+            tol = opt,
+        )
+
+        # resave results to JLD2 file
+        JLD2.@save "results/results-$name.jld2" results        
     end
-    return results
 end
 
-src = joinpath(@__DIR__, "instances", "miplib2010")
-mps_files = readdlm(joinpath(@__DIR__, "miplib_problems.txt"))[:]
 
-reformulate = true
-test_reader = false
 
-#=
-    Run benchmark on GPU
-=#
 
-name_results = "benchmark-miplib-gpu.txt"
-results = run_benchmark(src, mps_files; use_gpu=true, reformulate=reformulate, test_reader=test_reader)
-path_results = joinpath(@__DIR__, name_results)
-writedlm(path_results, [mps_files results])

@@ -23,9 +23,9 @@ cont = parse_args(s)["continue"]
 @info "Using device: $device for class: $class, continue: $cont"
 CUDA.device!(device)
 
-if cont && isfile("results-$class.jld2")
+if cont && isfile("results/results-$class.jld2")
     @info "Continuing from previous results."
-    JLD2.@load "results-$class.jld2" results
+    JLD2.@load "results/results-$class.jld2" results
 else
     @info "Starting fresh, no previous results found."
     results = Dict{String,Any}()
