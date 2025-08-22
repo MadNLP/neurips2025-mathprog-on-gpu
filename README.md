@@ -15,7 +15,7 @@ To reproduce the results in this paper, the following software or license file s
 - [julia](https://julialang.org/downloads/): we recommend using [juliaup](https://github.com/JuliaLang/juliaup) to install the latest stable version of Julia.
 - [libHSL](https://licences.stfc.ac.uk/product/libhsl-2025_7_21): a library for sparse linear algebra. After downloading libHSL, please install `HSL_jll` using the locally downloaded library.
 ```shell
-julia -e 'using Pkg; Pkg.dev(path="path/to/libhsl")'
+julia -e 'using Pkg; Pkg.develop(path="path/to/libhsl")'
 ```
 - [Gurobi](https://www.gurobi.com): A free academic license can be obtained from Gurobi's website. After obtaining the license, `gurobi.lic` should be placed in the home directory.
 
