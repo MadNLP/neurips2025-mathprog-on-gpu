@@ -23,19 +23,3 @@ julia -e 'using Pkg; Pkg.develop(path="path/to/libhsl")'
 ```
 make -C benchmark
 ```
-
-## Usage
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/neurips2025-mathprog-on-gpu
-   cd neurips2025-mathprog-on-gpu
-   ```
-
-2. **Install dependencies:**
-   Follow the installation instructions for the libraries listed above.
-
-3. **Run benchmarks:**
-   Execute the benchmark scripts provided to reproduce the results as outlined in the paper. For example:
-   ```bash
-   python benchmark.py
-   ```
