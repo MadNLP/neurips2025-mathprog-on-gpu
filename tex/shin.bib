@@ -2380,6 +2380,19 @@
   file = {/Users/sushin/Zotero/storage/4PQ8LALE/Duda - 2019 - Replacing hydropower with solar.pdf}
 }
 
+@book{duffDirectMethodsSparse2017,
+  title = {Direct {{Methods}} for {{Sparse Matrices}}},
+  author = {Duff, I. S. and Erisman, A. M. and Reid, J. K.},
+  year = {2017},
+  month = mar,
+  publisher = {Oxford University Press},
+  abstract = {The subject of sparse matrices has its root in such diverse fields as management science, power systems analysis, surveying, circuit theory, and structural analysis. Efficient use of sparsity is a key to solving large problems in many fields. This second edition is a complete rewrite of the first edition published 30 years ago. Much has changed since that time. Problems have grown greatly in size and complexity; nearly all examples in the first edition were of order less than 5,000 in the first edition, and are often more than a million in the second edition. Computer architectures are now much more complex, requiring new ways of adapting algorithms to parallel environments with memory hierarchies. Because the area is such an important one to all of computational science and engineering, a huge amount of research has been done in the last 30 years, some of it by the authors themselves. This new research is integrated into the text with a clear explanation of the underlying mathematics and algorithms. New research that is described includes new techniques for scaling and error control, new orderings, new combinatorial techniques for partitioning both symmetric and unsymmetric problems, and a detailed description of the multifrontal approach to solving systems that was pioneered by the research of the authors and colleagues. This includes a discussion of techniques for exploiting parallel architectures and new work for indefinite and unsymmetric systems.},
+  googlebooks = {jv5KDgAAQBAJ},
+  isbn = {978-0-19-250750-1},
+  langid = {english},
+  keywords = {Mathematics / Applied,Mathematics / Differential Equations / General,Mathematics / Discrete Mathematics,Mathematics / Functional Analysis}
+}
+
 @article{duffMA57aCodeSolution2004,
   title = {{{MA57---a}} Code for the Solution of Sparse Symmetric Definite and Indefinite Systems},
   author = {Duff, Iain S.},
@@ -4568,6 +4581,24 @@ Subject\_term: Environmental sciences, Biodiversity, Engineering},
   abstract = {In this article, we present a CUDA library with a C API for solving block cyclic tridiagonal and banded systems on one GPU. The library can process block tridiagonal systems with block sizes from 1 {\texttimes} 1 (scalar) to 4 {\texttimes} 4 and banded systems with up to four sub- and superdiagonals. For the compute-intensive block size cases and cases with many right-hand sides, we write out an explicit factorization to memory; however, for the scalar case, the fastest approach is to only output the coarse system and recompute the factorization. Prominent features of the library are (scaled) partial pivoting for improved numeric stability; highest-performance kernels, which completely utilize GPU memory bandwidth; and support for multiple sparse or dense right-hand side and solution vectors. The additional memory consumption is only 5\% of the original tridiagonal system, which enables the solution of systems up to GPU memory size. The performance of the state-of-the-art scalar tridiagonal solver of cuSPARSE is outperformed by factor 5 for large problem sizes of 2               25               unknowns, on a GeForce RTX 2080 Ti.},
   langid = {english},
   file = {/Users/sushin/Zotero/storage/SPGI6ACA/Klein and Strzodka - 2023 - Tridigpu A GPU Library for Block Tridiagonal and Banded Linear Equation Systems.pdf}
+}
+
+@article{kochMIPLIB20102011,
+  title = {{{MIPLIB}} 2010},
+  author = {Koch, Thorsten and Achterberg, Tobias and Andersen, Erling and Bastert, Oliver and Berthold, Timo and Bixby, Robert E. and Danna, Emilie and Gamrath, Gerald and Gleixner, Ambros M. and Heinz, Stefan and Lodi, Andrea and Mittelmann, Hans and Ralphs, Ted and Salvagnin, Domenico and Steffy, Daniel E. and Wolter, Kati},
+  year = {2011},
+  month = jun,
+  journal = {Mathematical Programming Computation},
+  volume = {3},
+  number = {2},
+  pages = {103--163},
+  issn = {1867-2957},
+  doi = {10.1007/s12532-011-0025-9},
+  urldate = {2025-08-21},
+  abstract = {This paper reports on the fifth version of the Mixed Integer Programming Library. The miplib 2010 is the first miplib release that has been assembled by a large group from academia and from industry, all of whom work in integer programming. There was mutual consent that the concept of the library had to be expanded in order to fulfill the needs of the community. The new version comprises 361 instances sorted into several groups. This includes the main benchmark test set of 87 instances, which are all solvable by today's codes, and also the challenge test set with 164 instances, many of which are currently unsolved. For the first time, we include scripts to run automated tests in a predefined way. Further, there is a solution checker to test the accuracy of provided solutions using exact arithmetic.},
+  langid = {english},
+  keywords = {90C10,90C11,90C90,IP,MIP,MIPLIB,Mixed Integer Programming,Problem instances},
+  file = {/Users/sushin/Zotero/storage/3D82EXF4/Koch et al. - 2011 - MIPLIB 2010.pdf}
 }
 
 @misc{kokolisRevisitingReliabilityLargeScale2024,
@@ -8383,7 +8414,7 @@ Subject\_term: Hydrology, Climate change, Environmental sciences, Policy},
   abstract = {We present a primal-dual interior-point algorithm with a filter line-search method for nonlinear programming. Local and global convergence properties of this method were analyzed in previous work. Here we provide a comprehensive description of the algorithm, including the feasibility restoration phase for the filter method, second-order corrections, and inertia correction of the KKT matrix. Heuristics are also considered that allow faster performance. This method has been implemented in the IPOPT code, which we demonstrate in a detailed numerical study based on 954 problems from the CUTEr test set. An evaluation is made of several line-search options, and a comparison is provided with two state-of-the-art interior-point codes for nonlinear programming.},
   langid = {english},
   keywords = {49M37,65K05,90C30,90C51,Barrier method,Filter method,Interior-point method,Line search,Nonconvex constrained optimization,Nonlinear programming},
-  file = {/Users/sushin/Zotero/storage/6T48G42L/Wächter and Biegler - 2006 - On the implementation of an interior-point filter line-search algorithm for large-scale nonlinear pr.pdf}
+  file = {/Users/sushin/Zotero/storage/6T48G42L/Wächter and Biegler - 2006 - On the implementation of an interior-point filter line-search algorithm for large-scale nonlinear pr.pdf;/Users/sushin/Zotero/storage/9JMYZ8X5/s10107-004-0559-y.pdf}
 }
 
 @article{wahlOptimizationSimpleLNG2013,
@@ -8909,6 +8940,23 @@ Subject\_term: Hydrology, Climate change, Environmental sciences, Policy},
   abstract = {At the heart of power system operations, alternating current optimal power flow (ACOPF) studies the generation of electric power in the most economical way under network-wide load requirement, and can be formulated as a highly structured non-convex quadratically constrained quadratic program (QCQP). Optimization-based solutions to ACOPF (such as ADMM or interior-point method), as the classic approach, require large amount of computation and cannot meet the need to repeatedly solve the problem as load requirement frequently changes. On the other hand, learning-based methods that directly predict the ACOPF solution given the load input incur little computational cost but often generates infeasible solutions (i.e. violate the constraints of ACOPF). In this work, we combine the best of both worlds --- we propose an innovated framework for learning ACOPF, where the input load is mapped to the ACOPF solution through a neural network in a computationally efficient and reliable manner. Key to our innovation is a specific-purpose ``activation function'' defined implicitly by a QCQP and a novel loss, which enforce constraint satisfaction. We show through numerical simulations that our proposed method achieves superior feasibility rate and generation cost in situations where the existing learning-based approaches fail.},
   langid = {english},
   file = {/Users/sushin/Zotero/storage/TSLDMVD6/Zeng et al. - 2024 - QCQP-Net Reliably learning feasible alternating current optimal power flow solutions under constrai.pdf}
+}
+
+@article{zhangDemandResponseAncillary2018,
+  title = {Demand {{Response}} of {{Ancillary Service From Industrial Loads Coordinated With Energy Storage}}},
+  author = {Zhang, Xiao and Hug, Gabriela and Kolter, J. Zico and Harjunkoski, Iiro},
+  year = {2018},
+  month = jan,
+  journal = {IEEE Transactions on Power Systems},
+  volume = {33},
+  number = {1},
+  pages = {951--961},
+  issn = {1558-0679},
+  doi = {10.1109/TPWRS.2017.2704524},
+  urldate = {2025-08-20},
+  abstract = {As one of the featured initiatives in smart grids, demand response is enabling active participation of electricity consumers in the supply/demand balancing process, thereby enhancing the power system's operational flexibility in a cost-effective way. Industrial load plays an important role in demand response because of its intense power consumption, already existing advanced monitoring, and control infrastructure, and its strong economic incentive due to the high energy costs. As typical industrial loads, cement plants are able to quickly adjust their power consumption rate by switching on/off the crushers. However, in the cement plant as well as other industrial loads, switching on/off the loading units only achieves discrete power changes, which restricts the load from offering valuable ancillary services such as regulation and load following, as continuous power changes are required for these services. In this paper, we overcome this restriction of poor granularity by proposing methods that enable these loads to provide regulation or load following with the support of an onsite energy storage system.},
+  keywords = {Demand response,Energy storage,energy storage system (ESS),industrial load,load following,Load management,model predictive control,Optimal scheduling,Power demand,Real-time systems,regulation,Switches},
+  file = {/Users/sushin/Zotero/storage/MD6JAL9Y/Zhang et al. - 2018 - Demand Response of Ancillary Service From Industrial Loads Coordinated With Energy Storage.pdf}
 }
 
 @misc{zhangOptimizingTrainedGNNs2023,
