@@ -97,16 +97,24 @@ Thorsten Koch, Tobias Achterberg, Erling Andersen, Oliver Bastert, Timo
 \newblock {{MIPLIB}} 2010.
 \newblock {\em Mathematical Programming Computation}, 3(2):103--163, June 2011.
 
-\bibitem{luCuPDLPFurtherEnhanced2025}
+\bibitem{lu2025cupdlpx}
 Haihao Lu, Zedong Peng, and Jinwen Yang.
-\newblock {{cuPDLP}}+: {{A Further Enhanced GPU-Based First-Order Solver}} for
-  {{Linear Programming}}, July 2025.
+\newblock {cuPDLPx: A further enhanced GPU-based first-order solver for linear
+  programming}.
+\newblock {\em arXiv preprint arXiv:2507.14051}, 2025.
 
 \bibitem{luCuPDLPCStrengthenedImplementation2024}
 Haihao Lu, Jinwen Yang, Haodong Hu, Qi~Huangfu, Jinsong Liu, Tianhao Liu, Yinyu
   Ye, Chuwen Zhang, and Dongdong Ge.
 \newblock {{cuPDLP-C}}: {{A Strengthened Implementation}} of {{cuPDLP}} for
   {{Linear Programming}} by {{C}} language, January 2024.
+
+\bibitem{MadNCL}
+Alexis Montoison, François Pacaud, Michael Saunders, Sungho Shin, and
+  Dominique Orban.
+\newblock {MadNCL: A GPU Implementation of Algorithm NCL for Large-Scale,
+  Degenerate Nonlinear Programs}.
+\newblock {\em arXiv preprint arXiv:2510.05885}, 2025.
 
 \bibitem{naumovParallelSolutionSparse}
 Maxim Naumov.
